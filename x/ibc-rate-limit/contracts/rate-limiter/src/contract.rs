@@ -124,8 +124,8 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetQuotas { channel_id, denom } => query::get_quotas(deps, channel_id, denom),
-        QueryMsg::GetRoleOwners => todo!(),
-        QueryMsg::GetRoles {owner} => todo!()
+        QueryMsg::GetRoleOwners => query::get_role_owners(deps),
+        QueryMsg::GetRoles {owner} => query::get_roles(deps, owner),
     }
 }
 
