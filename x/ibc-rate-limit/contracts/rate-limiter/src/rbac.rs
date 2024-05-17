@@ -41,7 +41,13 @@ mod test {
     use crate::{msg::QuotaMsg, state::Roles};
 
     use super::*;
-
+    #[test]
+    fn test_set_timelock_delay() {
+        let mut deps = mock_dependencies();
+        assert!(TIMELOCK_DELAY.load(&deps.storage, "foobar".to_string()).is_err());
+        set_timelock_delay(deps.as_mut(), "foobar".to_string(), 6).unwrap();
+        assert_eq!(TIMELOCK_DELAY.load(&deps.storage, "foobar".to_string()).unwrap(), 6);
+    }
     #[test]
     fn test_can_invoke_add_path() {
         let mut deps = mock_dependencies();
