@@ -147,3 +147,24 @@ pub enum SudoMsg {
 
 #[cw_serde]
 pub enum MigrateMsg {}
+
+
+impl ExecuteMsg {
+    /// Given an ExecuteMsg variant returns the required RBAC role
+    /// that must be held by the address which is invoking the message.
+    /// 
+    /// If no RBAC role is required, returns NOne
+    pub fn required_permission(&self) -> Option<Roles> {
+        match self {
+            Self::AddPath { .. } => Some(Roles::AddRateLimit),
+            Self::RemovePath { .. } => Some(Roles::RemoveRateLimit),
+            Self::ResetPathQuota { .. } => Some(Roles::ResetPathQuota),
+            Self::GrantRole { .. } => Some(Roles::GrantRole),
+            Self::RevokeRole { .. } => Some(Roles::RevokeRole),
+            Self::EditPathQuota { .. } => Some(Roles::EditPathQuota),
+            Self::RemoveProposal { .. } => Some(Roles::RemoveProposal),
+            Self::SetTimelockDelay  { .. } => Some(Roles::SetTimelockDelay),
+            Self::ProcessProposals { .. } => None
+        }
+    }
+}
