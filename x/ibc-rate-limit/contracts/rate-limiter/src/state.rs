@@ -5,7 +5,7 @@ use std::cmp;
 
 use cw_storage_plus::{Item, Map};
 
-use crate::{msg::QuotaMsg, ContractError};
+use crate::{msg::{ExecuteMsg, QuotaMsg}, ContractError};
 
 /// This represents the key for our rate limiting tracker. A tuple of a denom and
 /// a channel. When interactic with storage, it's preffered to use this struct
@@ -305,6 +305,49 @@ impl RateLimit {
     }
 }
 
+
+/// Roles defines the available permissions that can be assigned to addresses as part of the RBAC system
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+pub enum Roles {
+    /// Has the ability to add a new rate limit
+    AddRateLimit,
+    /// Has the ability to complete remove a configured rate limit
+    RemoveRateLimit,
+    /// Has the ability to reset tracked quotas
+    ResetPathQuota,
+    /// Has the ability to edit existing quotas
+    EditPathQuota,
+    /// Has the ability to grant roles to an address
+    GrantRole,
+    /// Has the ability to revoke granted roles to an address
+    RevokeRole,
+    /// Has the ability to remove queued proposals
+    RemoveProposal,
+    /// Has the ability to alter timelock delay's
+    SetTimelockDelay
+}
+
+#[derive(
+    Serialize,
+    Deserialize,
+    Clone,
+    Debug,
+    PartialEq,
+    JsonSchema
+)]
+pub struct QueuedProposal {
+    /// the message that submitted to the contract after a successful proposal
+    pub message: ExecuteMsg,
+    /// the time which the message was processed by the contract
+    pub submitted_at: Timestamp,
+    /// the timelock delay that was in place when the proposal was queued for execution
+    pub timelock_delay: u64,
+    /// Constructed using format!("{}_{}", Env::BlockInfo::Height Env::Transaction::Index)
+    /// 
+    /// Can be used to remove a proposal from the queue without processing it
+    pub proposal_id: String,
+}
+
 /// Only this address can manage the contract. This will likely be the
 /// governance module, but could be set to something else if needed
 pub const GOVMODULE: Item<Addr> = Item::new("gov_module");
@@ -331,6 +374,17 @@ pub const IBCMODULE: Item<Addr> = Item::new("ibc_module");
 /// composite keys instead of a struct to avoid having to implement the
 /// PrimaryKey trait
 pub const RATE_LIMIT_TRACKERS: Map<(String, String), Vec<RateLimit>> = Map::new("flow");
+
+/// Maps address -> delay, automatically applying a timelock delay to all 
+/// proposals submitted by a specific address
+pub const TIMELOCK_DELAY: Map<String, u64> = Map::new("timelock_delay");
+
+/// Storage variable which is used to queue messages for execution that are the result of a successful dao proposal.
+/// In order for the message to be processed, X hours must past from QueuedProposal::submited_at
+pub const PROPOSAL_QUEUE: Item<Vec<QueuedProposal>> = Item::new("proposals");
+
+/// Storage variable that is used to map signing addresses and the permissions they have been granted
+pub const RBAC_PERMISSIONS: Map<String, Vec<Roles>> = Map::new("rbac");
 
 #[cfg(test)]
 pub mod tests {
