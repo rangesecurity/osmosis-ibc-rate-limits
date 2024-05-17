@@ -1,6 +1,6 @@
-use cosmwasm_std::{to_binary, Binary, Deps, StdResult};
-use cosmwasm_std::Order::Ascending;
 use crate::state::{Path, PROPOSAL_QUEUE, RATE_LIMIT_TRACKERS, RBAC_PERMISSIONS};
+use cosmwasm_std::Order::Ascending;
+use cosmwasm_std::{to_binary, Binary, Deps, StdResult};
 
 pub fn get_quotas(
     deps: Deps,
@@ -12,52 +12,70 @@ pub fn get_quotas(
 }
 
 /// Returns all addresses which have been assigned one or more roles
-pub fn get_role_owners(
-    deps: Deps
-) -> StdResult<Binary> {
-    to_binary(&RBAC_PERMISSIONS.keys(deps.storage, None, None, Ascending).filter_map(|key| key.ok()).collect::<Vec<_>>())
+pub fn get_role_owners(deps: Deps) -> StdResult<Binary> {
+    to_binary(
+        &RBAC_PERMISSIONS
+            .keys(deps.storage, None, None, Ascending)
+            .filter_map(|key| key.ok())
+            .collect::<Vec<_>>(),
+    )
 }
 
 /// Returns all the roles that have been granted to `owner` (if any)
-pub fn get_roles(
-    deps: Deps,
-    owner: String,
-) -> StdResult<Binary> {
+pub fn get_roles(deps: Deps, owner: String) -> StdResult<Binary> {
     to_binary(&RBAC_PERMISSIONS.load(deps.storage, owner)?)
 }
 
 /// Returns the id's of all queued proposals
-pub fn get_proposal_ids(
-    deps: Deps
-) -> StdResult<Binary> {
-    to_binary(&PROPOSAL_QUEUE.load(deps.storage)?.into_iter().map(|proposal| proposal.proposal_id).collect::<Vec<_>>())
+pub fn get_proposal_ids(deps: Deps) -> StdResult<Binary> {
+    to_binary(
+        &PROPOSAL_QUEUE
+            .iter(deps.storage)?
+            .filter_map(|proposal| Some(proposal.ok()?.proposal_id))
+            .collect::<Vec<_>>(),
+    )
 }
 
 #[cfg(test)]
 mod test {
     use cosmwasm_std::{from_binary, testing::mock_dependencies, Timestamp};
 
-    use crate::{msg::ExecuteMsg, state::{QueuedProposal, Roles}};
+    use crate::{
+        msg::ExecuteMsg,
+        state::{QueuedProposal, Roles},
+    };
 
     use super::*;
     #[test]
     fn test_get_role_owners() {
         let mut deps = mock_dependencies();
-        
+
         // test getting role owners when no owners exist
         let response = get_role_owners(deps.as_ref()).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
         assert!(decoded.is_empty());
 
         // insert 1 role owner, and test getting role owners
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::SetTimelockDelay]).unwrap();
+        RBAC_PERMISSIONS
+            .save(
+                &mut deps.storage,
+                "foobar".to_string(),
+                &vec![Roles::SetTimelockDelay],
+            )
+            .unwrap();
         let response = get_role_owners(deps.as_ref()).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 1);
         assert_eq!(decoded[0], "foobar");
 
         // insert another role owner and test getting role owners
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobarbaz".to_string(), &vec![Roles::SetTimelockDelay]).unwrap();
+        RBAC_PERMISSIONS
+            .save(
+                &mut deps.storage,
+                "foobarbaz".to_string(),
+                &vec![Roles::SetTimelockDelay],
+            )
+            .unwrap();
         let response = get_role_owners(deps.as_ref()).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 2);
@@ -73,14 +91,26 @@ mod test {
         assert!(get_roles(deps.as_ref(), "foobar".to_string()).is_err());
 
         // assign roles and test retrieving roles owned by address
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::SetTimelockDelay]).unwrap();
+        RBAC_PERMISSIONS
+            .save(
+                &mut deps.storage,
+                "foobar".to_string(),
+                &vec![Roles::SetTimelockDelay],
+            )
+            .unwrap();
         let response = get_roles(deps.as_ref(), "foobar".to_string()).unwrap();
         let decoded: Vec<Roles> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 1);
         assert_eq!(decoded[0], Roles::SetTimelockDelay);
 
         // add additional roles foobar, and test retrierval
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::SetTimelockDelay, Roles::EditPathQuota]).unwrap();
+        RBAC_PERMISSIONS
+            .save(
+                &mut deps.storage,
+                "foobar".to_string(),
+                &vec![Roles::SetTimelockDelay, Roles::EditPathQuota],
+            )
+            .unwrap();
         let response = get_roles(deps.as_ref(), "foobar".to_string()).unwrap();
         let decoded: Vec<Roles> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 2);
@@ -91,22 +121,32 @@ mod test {
     #[test]
     fn test_get_proposal_ids() {
         let mut deps = mock_dependencies();
-        assert!(get_proposal_ids(deps.as_ref()).is_err());
-
-        PROPOSAL_QUEUE.save(&mut deps.storage, &vec![
-            QueuedProposal {
-                proposal_id: "prop-1".to_string(),
-                message: ExecuteMsg::ProcessProposals { count: 1},
-                submitted_at: Timestamp::default(),
-                timelock_delay: 0
-            },
-            QueuedProposal {
-                proposal_id: "prop-2".to_string(),
-                message: ExecuteMsg::ProcessProposals { count: 1},
-                submitted_at: Timestamp::default(),
-                timelock_delay: 0
-            }
-        ]).unwrap();
+        let response = get_proposal_ids(deps.as_ref()).unwrap();
+        let decoded: Vec<String> = from_binary(&response).unwrap();
+        assert_eq!(decoded.len(), 0);
+        
+        PROPOSAL_QUEUE
+            .push_back(
+                &mut deps.storage,
+                &QueuedProposal {
+                    proposal_id: "prop-1".to_string(),
+                    message: ExecuteMsg::ProcessProposals { count: 1 },
+                    submitted_at: Timestamp::default(),
+                    timelock_delay: 0,
+                },
+            )
+            .unwrap();
+        PROPOSAL_QUEUE
+            .push_back(
+                &mut deps.storage,
+                &QueuedProposal {
+                    proposal_id: "prop-2".to_string(),
+                    message: ExecuteMsg::ProcessProposals { count: 1 },
+                    submitted_at: Timestamp::default(),
+                    timelock_delay: 0,
+                },
+            )
+            .unwrap();
         let response = get_proposal_ids(deps.as_ref()).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 2);
