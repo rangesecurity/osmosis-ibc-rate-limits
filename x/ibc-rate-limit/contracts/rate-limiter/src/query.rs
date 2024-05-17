@@ -1,6 +1,6 @@
 use cosmwasm_std::{to_binary, Binary, Deps, StdResult};
 use cosmwasm_std::Order::Ascending;
-use crate::state::{Path, RBAC_PERMISSIONS, RATE_LIMIT_TRACKERS};
+use crate::state::{Path, PROPOSAL_QUEUE, RATE_LIMIT_TRACKERS, RBAC_PERMISSIONS};
 
 pub fn get_quotas(
     deps: Deps,
@@ -26,11 +26,18 @@ pub fn get_roles(
     to_binary(&RBAC_PERMISSIONS.load(deps.storage, owner)?)
 }
 
+/// Returns the id's of all queued proposals
+pub fn get_proposal_ids(
+    deps: Deps
+) -> StdResult<Binary> {
+    to_binary(&PROPOSAL_QUEUE.load(deps.storage)?.into_iter().map(|proposal| proposal.proposal_id).collect::<Vec<_>>())
+}
+
 #[cfg(test)]
 mod test {
-    use cosmwasm_std::{from_binary, testing::mock_dependencies};
+    use cosmwasm_std::{from_binary, testing::mock_dependencies, Timestamp};
 
-    use crate::state::Roles;
+    use crate::{msg::ExecuteMsg, state::{QueuedProposal, Roles}};
 
     use super::*;
     #[test]
@@ -79,5 +86,31 @@ mod test {
         assert_eq!(decoded.len(), 2);
         assert_eq!(decoded[0], Roles::SetTimelockDelay);
         assert_eq!(decoded[1], Roles::EditPathQuota);
+    }
+
+    #[test]
+    fn test_get_proposal_ids() {
+        let mut deps = mock_dependencies();
+        assert!(get_proposal_ids(deps.as_ref()).is_err());
+
+        PROPOSAL_QUEUE.save(&mut deps.storage, &vec![
+            QueuedProposal {
+                proposal_id: "prop-1".to_string(),
+                message: ExecuteMsg::ProcessProposals { count: 1},
+                submitted_at: Timestamp::default(),
+                timelock_delay: 0
+            },
+            QueuedProposal {
+                proposal_id: "prop-2".to_string(),
+                message: ExecuteMsg::ProcessProposals { count: 1},
+                submitted_at: Timestamp::default(),
+                timelock_delay: 0
+            }
+        ]).unwrap();
+        let response = get_proposal_ids(deps.as_ref()).unwrap();
+        let decoded: Vec<String> = from_binary(&response).unwrap();
+        assert_eq!(decoded.len(), 2);
+        assert_eq!(decoded[0], "prop-1");
+        assert_eq!(decoded[1], "prop-2");
     }
 }

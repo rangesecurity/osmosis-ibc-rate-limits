@@ -126,6 +126,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetQuotas { channel_id, denom } => query::get_quotas(deps, channel_id, denom),
         QueryMsg::GetRoleOwners => query::get_role_owners(deps),
         QueryMsg::GetRoles {owner} => query::get_roles(deps, owner),
+        QueryMsg::GetProposalIds() => query::get_proposal_ids(deps),
     }
 }
 

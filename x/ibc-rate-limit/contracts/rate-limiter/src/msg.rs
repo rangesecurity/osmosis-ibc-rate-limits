@@ -123,6 +123,9 @@ pub enum QueryMsg {
     /// Returns a vector of all roles that have been granted to `owner`
     #[returns(Vec<crate::state::Roles>)]
     GetRoles { owner: String },
+    /// Returns a vector of queued proposal id's
+    #[returns(Vec<String>)]
+    GetProposalIds()
 }
 
 #[cw_serde]
