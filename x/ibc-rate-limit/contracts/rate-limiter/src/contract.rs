@@ -59,6 +59,33 @@ pub fn execute(
             quota_id,
             env.block.time,
         ),
+        ExecuteMsg::GrantRole {
+            signer,
+            roles
+        } => todo!(),
+        ExecuteMsg::GrantRole {
+            signer,
+            roles
+        } => todo!(),
+        ExecuteMsg::RevokeRole {
+            signer,
+            roles
+        } => todo!(),
+        ExecuteMsg::EditPathQuota {
+            channel_id,
+            denom,
+            quota
+        } => todo!(),
+        ExecuteMsg::RemoveProposal {
+            proposal_id
+        } => todo!(),
+        ExecuteMsg::SetTimelockDelay {
+            signer,
+            hours
+        } => todo!(),
+        ExecuteMsg::ProcessProposals {
+            count
+        } => todo!()
     }
 }
 
@@ -97,6 +124,8 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetQuotas { channel_id, denom } => query::get_quotas(deps, channel_id, denom),
+        QueryMsg::GetRoleOwners => todo!(),
+        QueryMsg::GetRoles {owner} => todo!()
     }
 }
 

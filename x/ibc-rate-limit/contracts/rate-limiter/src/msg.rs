@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use cosmwasm_std::Uint256;
 
-use crate::packet::Packet;
+use crate::{packet::Packet, state::Roles};
 
 // PathMsg contains a channel_id and denom to represent a unique identifier within ibc-go, and a list of rate limit quotas
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -75,6 +75,41 @@ pub enum ExecuteMsg {
         denom: String,
         quota_id: String,
     },
+    /// Grants a role to the given signer
+    GrantRole {
+        signer: String,
+        /// full list of roles to grant the signer
+        roles: Vec<Roles>,
+    },
+    /// Removes the role that has been granted to the signer
+    RevokeRole {
+        signer: String,
+        /// fill list of roles to revoke from the signer
+        roles: Vec<Roles>,
+    },
+    /// Replaces the quota identified by QuotaMsg::Name
+    EditPathQuota {
+        channel_id: String,
+        denom: String,
+        /// similar to ResetPathQuota, but QuotaMsg::Name is used as the quota_id
+        quota: QuotaMsg,
+    },
+    /// Used to remove a proposal from the proposal queue to prevent execution
+    RemoveProposal {
+        proposal_id: String,
+    },
+    /// Used to change the timelock delay for newly submitted proposals
+    SetTimelockDelay {
+        /// the address to apply the timelock delay to
+        signer: String,
+        hours: u64,
+    },
+    /// Permissionless message that anyone can invoke to trigger execution
+    /// of queued proposals that have passed the timelock delay
+    ProcessProposals {
+        /// number of queued proposals to process, a value of 0 will attempt to process all queued proposals
+        count: u64,
+    },
 }
 
 #[cw_serde]
@@ -82,6 +117,12 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(Vec<crate::state::RateLimit>)]
     GetQuotas { channel_id: String, denom: String },
+    /// Returns a vector of all addresses that have been allocated one or more roles
+    #[returns(Vec<String>)]
+    GetRoleOwners,
+    /// Returns a vector of all roles that have been granted to `owner`
+    #[returns(Vec<crate::state::Roles>)]
+    GetRoles { owner: String },
 }
 
 #[cw_serde]
