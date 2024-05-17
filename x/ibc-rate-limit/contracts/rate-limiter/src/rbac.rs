@@ -1,6 +1,6 @@
 use cosmwasm_std::{DepsMut, MessageInfo};
 
-use crate::{msg::ExecuteMsg, state::RBAC_PERMISSIONS, ContractError};
+use crate::{msg::ExecuteMsg, state::{RBAC_PERMISSIONS, TIMELOCK_DELAY}, ContractError};
 
 /// Check to see if the sender of the message can invoke the message by holding the required rbac role
 /// 
@@ -10,7 +10,7 @@ use crate::{msg::ExecuteMsg, state::RBAC_PERMISSIONS, ContractError};
 /// 
 /// StdErr::NotFound if the RBAC_PERMISSIONS storage variable does not have an entry for the sender
 pub fn can_invoke_message(
-    deps: DepsMut,
+    deps: &DepsMut,
     info: &MessageInfo,
     msg: &ExecuteMsg,
 ) -> Result<(), ContractError> {
@@ -24,6 +24,14 @@ pub fn can_invoke_message(
         return Ok(())
     }
     Err(ContractError::Unauthorized {  })
+}
+
+pub fn set_timelock_delay(
+    deps: DepsMut,
+    signer: String,
+    hours: u64
+) -> Result<(), ContractError> {
+    Ok(TIMELOCK_DELAY.save(deps.storage, signer, &hours)?)
 }
 
 #[cfg(test)]
@@ -55,12 +63,12 @@ mod test {
         RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::AddRateLimit]).unwrap();
 
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobar,
             &msg            
         ).is_ok());
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobarbaz,
             &msg            
         ).is_err());
@@ -87,12 +95,12 @@ mod test {
         RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::RemoveRateLimit]).unwrap();
 
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobar,
             &msg            
         ).is_ok());
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobarbaz,
             &msg            
         ).is_err());
@@ -120,12 +128,12 @@ mod test {
         RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::ResetPathQuota]).unwrap();
 
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobar,
             &msg            
         ).is_ok());
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobarbaz,
             &msg            
         ).is_err());
@@ -152,12 +160,12 @@ mod test {
         RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::GrantRole]).unwrap();
 
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobar,
             &msg            
         ).is_ok());
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobarbaz,
             &msg            
         ).is_err());
@@ -183,12 +191,12 @@ mod test {
         };
         RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::RevokeRole]).unwrap();
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobar,
             &msg            
         ).is_ok());
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobarbaz,
             &msg            
         ).is_err());
@@ -219,12 +227,12 @@ mod test {
         };
         RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::EditPathQuota]).unwrap();
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobar,
             &msg            
         ).is_ok());
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobarbaz,
             &msg            
         ).is_err());
@@ -249,12 +257,12 @@ mod test {
         };
         RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::RemoveProposal]).unwrap();
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobar,
             &msg            
         ).is_ok());
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobarbaz,
             &msg            
         ).is_err());
@@ -281,12 +289,12 @@ mod test {
         };
         RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::SetTimelockDelay]).unwrap();
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobar,
             &msg            
         ).is_ok());
         assert!(can_invoke_message(
-            deps.as_mut(),
+            &deps.as_mut(),
             &info_foobarbaz,
             &msg            
         ).is_err());
@@ -312,14 +320,14 @@ mod test {
         // all addresses should be able to invoke this
         assert!(
             can_invoke_message(
-                deps.as_mut(),
+                &deps.as_mut(),
                 &info_foobar,
                 &msg
             ).is_ok()
         );
         assert!(
             can_invoke_message(
-                deps.as_mut(),
+                &deps.as_mut(),
                 &info_foobarbaz,
                 &msg
             ).is_ok()

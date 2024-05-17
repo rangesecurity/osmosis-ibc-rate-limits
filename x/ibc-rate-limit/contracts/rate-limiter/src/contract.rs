@@ -38,6 +38,8 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
+    // check to see if special permissions are required to invoke the message, and that the sender has the required permissions
+    crate::rbac::can_invoke_message(&deps, &info, &msg)?;
     match msg {
         ExecuteMsg::AddPath {
             channel_id,
@@ -59,33 +61,22 @@ pub fn execute(
             quota_id,
             env.block.time,
         ),
-        ExecuteMsg::GrantRole {
-            signer,
-            roles
-        } => todo!(),
-        ExecuteMsg::GrantRole {
-            signer,
-            roles
-        } => todo!(),
-        ExecuteMsg::RevokeRole {
-            signer,
-            roles
-        } => todo!(),
+        ExecuteMsg::GrantRole { signer, roles } => todo!(),
+        ExecuteMsg::RevokeRole { signer, roles } => todo!(),
         ExecuteMsg::EditPathQuota {
             channel_id,
             denom,
-            quota
+            quota,
         } => todo!(),
-        ExecuteMsg::RemoveProposal {
-            proposal_id
-        } => todo!(),
-        ExecuteMsg::SetTimelockDelay {
-            signer,
-            hours
-        } => todo!(),
-        ExecuteMsg::ProcessProposals {
-            count
-        } => todo!()
+        ExecuteMsg::RemoveProposal { proposal_id } => todo!(),
+        ExecuteMsg::SetTimelockDelay { signer, hours } => {
+            crate::rbac::set_timelock_delay(deps, signer.clone(), hours)?;
+            Ok(Response::new()
+                .add_attribute("method", "set_timelock_delay")
+                .add_attribute("signer", signer)
+                .add_attribute("hours", hours.to_string()))
+        }
+        ExecuteMsg::ProcessProposals { count } => todo!(),
     }
 }
 
@@ -125,7 +116,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetQuotas { channel_id, denom } => query::get_quotas(deps, channel_id, denom),
         QueryMsg::GetRoleOwners => query::get_role_owners(deps),
-        QueryMsg::GetRoles {owner} => query::get_roles(deps, owner),
+        QueryMsg::GetRoles { owner } => query::get_roles(deps, owner),
         QueryMsg::GetProposalIds() => query::get_proposal_ids(deps),
     }
 }
