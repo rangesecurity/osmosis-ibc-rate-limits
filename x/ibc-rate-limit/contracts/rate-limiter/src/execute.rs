@@ -29,18 +29,11 @@ pub fn add_new_paths(
 
 pub fn try_add_path(
     deps: DepsMut,
-    sender: Addr,
     channel_id: String,
     denom: String,
     quotas: Vec<QuotaMsg>,
     now: Timestamp,
 ) -> Result<Response, ContractError> {
-    // codenit: should we make a function for checking this authorization?
-    let ibc_module = IBCMODULE.load(deps.storage)?;
-    let gov_module = GOVMODULE.load(deps.storage)?;
-    if sender != ibc_module && sender != gov_module {
-        return Err(ContractError::Unauthorized {});
-    }
     add_new_paths(deps, vec![PathMsg::new(&channel_id, &denom, quotas)], now)?;
 
     Ok(Response::new()
@@ -51,16 +44,9 @@ pub fn try_add_path(
 
 pub fn try_remove_path(
     deps: DepsMut,
-    sender: Addr,
     channel_id: String,
     denom: String,
 ) -> Result<Response, ContractError> {
-    let ibc_module = IBCMODULE.load(deps.storage)?;
-    let gov_module = GOVMODULE.load(deps.storage)?;
-    if sender != ibc_module && sender != gov_module {
-        return Err(ContractError::Unauthorized {});
-    }
-
     let path = Path::new(&channel_id, &denom);
     RATE_LIMIT_TRACKERS.remove(deps.storage, path.into());
     Ok(Response::new()
@@ -72,17 +58,11 @@ pub fn try_remove_path(
 // Reset specified quote_id for the given channel_id
 pub fn try_reset_path_quota(
     deps: DepsMut,
-    sender: Addr,
     channel_id: String,
     denom: String,
     quota_id: String,
     now: Timestamp,
 ) -> Result<Response, ContractError> {
-    let gov_module = GOVMODULE.load(deps.storage)?;
-    if sender != gov_module {
-        return Err(ContractError::Unauthorized {});
-    }
-
     let path = Path::new(&channel_id, &denom);
     RATE_LIMIT_TRACKERS.update(deps.storage, path.into(), |maybe_rate_limit| {
         match maybe_rate_limit {

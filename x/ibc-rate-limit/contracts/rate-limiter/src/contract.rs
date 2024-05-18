@@ -45,9 +45,9 @@ pub fn execute(
             channel_id,
             denom,
             quotas,
-        } => execute::try_add_path(deps, info.sender, channel_id, denom, quotas, env.block.time),
+        } => execute::try_add_path(deps, channel_id, denom, quotas, env.block.time),
         ExecuteMsg::RemovePath { channel_id, denom } => {
-            execute::try_remove_path(deps, info.sender, channel_id, denom)
+            execute::try_remove_path(deps, channel_id, denom)
         }
         ExecuteMsg::ResetPathQuota {
             channel_id,
@@ -55,7 +55,6 @@ pub fn execute(
             quota_id,
         } => execute::try_reset_path_quota(
             deps,
-            info.sender,
             channel_id,
             denom,
             quota_id,
