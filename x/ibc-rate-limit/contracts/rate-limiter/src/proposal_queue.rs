@@ -1,6 +1,6 @@
 use cosmwasm_std::{DepsMut, Env, MessageInfo};
 
-use crate::{msg::ExecuteMsg, state::{QueuedProposal, PROPOSAL_QUEUE, TIMELOCK_DELAY}, ContractError};
+use crate::{msg::ExecuteMsg, state::{rbac::QueuedProposal, storage::{PROPOSAL_QUEUE, TIMELOCK_DELAY}}, error::ContractError};
 
 
 /// Used to iterate over the proposal queue and process any proposals that have passed the time lock delay.

@@ -5,7 +5,7 @@ use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
-use crate::state::{FlowType, GOVMODULE, IBCMODULE};
+use crate::state::{flow::FlowType, storage::{GOVMODULE, IBCMODULE}};
 use crate::{execute, query, sudo};
 
 // version info for migration info

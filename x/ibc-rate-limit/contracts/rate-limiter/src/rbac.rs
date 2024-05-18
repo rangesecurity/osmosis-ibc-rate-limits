@@ -1,6 +1,6 @@
 use cosmwasm_std::{DepsMut, MessageInfo};
 
-use crate::{msg::ExecuteMsg, state::{RBAC_PERMISSIONS, TIMELOCK_DELAY}, ContractError};
+use crate::{msg::ExecuteMsg, state::storage::{RBAC_PERMISSIONS, TIMELOCK_DELAY}, ContractError};
 
 /// Check to see if the sender of the message can invoke the message by holding the required rbac role
 /// 
@@ -38,7 +38,7 @@ pub fn set_timelock_delay(
 mod test {
     use cosmwasm_std::{testing::mock_dependencies, Addr};
 
-    use crate::{msg::QuotaMsg, state::Roles};
+    use crate::{msg::QuotaMsg, state::rbac::Roles};
 
     use super::*;
     #[test]

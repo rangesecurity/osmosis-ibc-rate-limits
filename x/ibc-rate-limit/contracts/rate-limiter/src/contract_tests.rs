@@ -7,9 +7,9 @@ use cosmwasm_std::{from_binary, Addr, Attribute, Uint256};
 
 use crate::helpers::tests::verify_query_response;
 use crate::msg::{InstantiateMsg, PathMsg, QueryMsg, QuotaMsg, SudoMsg};
-use crate::state::tests::RESET_TIME_WEEKLY;
-use crate::state::{RateLimit, GOVMODULE, IBCMODULE, RATE_LIMIT_TRACKERS};
-
+use crate::state::flow::tests::RESET_TIME_WEEKLY;
+use crate::state::storage::{GOVMODULE, IBCMODULE, RATE_LIMIT_TRACKERS};
+use crate::state::rate_limit::RateLimit;
 const IBC_ADDR: &str = "IBC_MODULE";
 const GOV_ADDR: &str = "GOV_MODULE";
 

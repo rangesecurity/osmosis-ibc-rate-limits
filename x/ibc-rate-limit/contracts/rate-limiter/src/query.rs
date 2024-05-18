@@ -1,4 +1,4 @@
-use crate::state::{Path, PROPOSAL_QUEUE, RATE_LIMIT_TRACKERS, RBAC_PERMISSIONS};
+use crate::state::{path::Path, storage::{PROPOSAL_QUEUE, RATE_LIMIT_TRACKERS, RBAC_PERMISSIONS}};
 use cosmwasm_std::Order::Ascending;
 use cosmwasm_std::{to_binary, Binary, Deps, StdResult};
 
@@ -42,7 +42,7 @@ mod test {
 
     use crate::{
         msg::ExecuteMsg,
-        state::{QueuedProposal, Roles},
+        state::rbac::{QueuedProposal, Roles},
     };
 
     use super::*;

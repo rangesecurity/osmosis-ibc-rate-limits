@@ -1,5 +1,5 @@
 use crate::msg::{PathMsg, QuotaMsg};
-use crate::state::{Flow, Path, RateLimit, GOVMODULE, IBCMODULE, RATE_LIMIT_TRACKERS};
+use crate::state::{flow::Flow, path::Path, rate_limit::RateLimit, storage::{GOVMODULE, IBCMODULE, RATE_LIMIT_TRACKERS}};
 use crate::ContractError;
 use cosmwasm_std::{Addr, DepsMut, Response, Timestamp};
 
@@ -116,7 +116,7 @@ mod tests {
     use crate::contract::{execute, query};
     use crate::helpers::tests::verify_query_response;
     use crate::msg::{ExecuteMsg, QueryMsg, QuotaMsg};
-    use crate::state::{RateLimit, GOVMODULE, IBCMODULE};
+    use crate::state::{rate_limit::RateLimit, storage::{GOVMODULE, IBCMODULE}};
 
     const IBC_ADDR: &str = "IBC_MODULE";
     const GOV_ADDR: &str = "GOV_MODULE";

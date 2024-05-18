@@ -5,7 +5,7 @@ use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper, Executor};
 
 use crate::{
     msg::{InstantiateMsg, PathMsg, QuotaMsg},
-    state::tests::{RESET_TIME_DAILY, RESET_TIME_MONTHLY, RESET_TIME_WEEKLY},
+    state::flow::tests::{RESET_TIME_DAILY, RESET_TIME_MONTHLY, RESET_TIME_WEEKLY},
 };
 
 pub fn contract_template() -> Box<dyn Contract<Empty>> {

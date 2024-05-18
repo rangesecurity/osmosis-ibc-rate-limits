@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use cosmwasm_std::Uint256;
 
-use crate::{packet::Packet, state::Roles};
+use crate::{packet::Packet, state::rbac::Roles};
 
 // PathMsg contains a channel_id and denom to represent a unique identifier within ibc-go, and a list of rate limit quotas
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -115,13 +115,13 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(Vec<crate::state::RateLimit>)]
+    #[returns(Vec<crate::state::rate_limit::RateLimit>)]
     GetQuotas { channel_id: String, denom: String },
     /// Returns a vector of all addresses that have been allocated one or more roles
     #[returns(Vec<String>)]
     GetRoleOwners,
     /// Returns a vector of all roles that have been granted to `owner`
-    #[returns(Vec<crate::state::Roles>)]
+    #[returns(Vec<crate::state::rbac::Roles>)]
     GetRoles { owner: String },
     /// Returns a vector of queued proposal id's
     #[returns(Vec<String>)]
