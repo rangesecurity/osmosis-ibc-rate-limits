@@ -12,21 +12,23 @@ use crate::{msg::ExecuteMsg, state::{rbac::QueuedProposal, storage::{PROPOSAL_QU
 /// in sequence to iterate over the queue
 /// 
 /// TODO: test
-pub fn process_proposal_queue(deps: DepsMut, env: Env, count: usize) -> Result<(), ContractError> {
+pub fn process_proposal_queue(deps: &mut DepsMut, env: Env, count: usize) -> Result<(), ContractError> {
     let queue_len = PROPOSAL_QUEUE.len(deps.storage)? as usize;
-
+    
     for idx in 0..queue_len {
-        // rust ranges are exclusive of the end, so +1 to the index to see if it matches the count
-        if count != 0 && idx + 1 >= count {
+        if idx + 1 > count {
             break;
         }
         if let Some(proposal) = PROPOSAL_QUEUE.pop_front(deps.storage)? {
+            // compute the minimum time at which the proposal is unlocked
+            let min_unlock = proposal
+            .submitted_at
+            .plus_seconds(proposal.timelock_delay * 60 * 60);
+            
             // check to see if the timelock delay has passed, which we need to first convert from hours int oseconds
-            if env.block.time.ge(&proposal
-                .submitted_at
-                .plus_seconds(proposal.timelock_delay * 60 * 60))
+            if env.block.time.ge(&min_unlock)
             {
-                // invoke message processing functions
+                crate::contract::match_execute(deps, &env, proposal.message)?;
             } else {
                 PROPOSAL_QUEUE.push_back(deps.storage, &proposal)?;
             }
@@ -73,4 +75,61 @@ pub fn must_queue_proposal(
 ) -> bool {
     // if a non zero value is set, then it means a timelock delay is required
     TIMELOCK_DELAY.load(deps.storage, info.sender.to_string()).unwrap_or(0) > 0
+}
+
+#[cfg(test)]
+mod tests {
+    use cosmwasm_std::{testing::{mock_dependencies, mock_env}, MemoryStorage, Timestamp};
+
+    use super::*;
+
+    #[test]
+    fn test_process_proposal_queue_basic() {
+        // basic test which simply iterates over the proposal queues
+        // does include tests with some unlocked items vs some locked items
+
+        let mut deps = mock_dependencies();
+        let mut deps = deps.as_mut();
+        let mut env = mock_env();
+        create_n_proposals(&mut deps, 10);
+        assert_eq!(PROPOSAL_QUEUE.len(deps.storage).unwrap(), 10);
+
+        process_proposal_queue(
+            &mut deps,
+            env.clone(),
+            1
+        ).unwrap();
+        assert_eq!(PROPOSAL_QUEUE.len(deps.storage).unwrap(), 9);
+
+        process_proposal_queue(
+            &mut deps,
+            env.clone(),
+            0,
+        ).unwrap();
+        assert_eq!(PROPOSAL_QUEUE.len(deps.storage).unwrap(), 9);
+    }
+
+    #[test]
+    fn test_process_proposal_queue_complete() {
+        // complete proposal queues testing, including some locked vs unlocked
+        // as well as validating execution
+    }
+
+
+    fn create_n_proposals(deps: &mut DepsMut, n: usize) {
+        for i in 0..n {
+            PROPOSAL_QUEUE.push_back(
+                deps.storage,
+                &QueuedProposal {
+                    message: ExecuteMsg::SetTimelockDelay {
+                        signer: "signer".to_string(),
+                        hours: i as u64 + 1
+                    },
+                    submitted_at: Timestamp::default(),
+                    timelock_delay: 24,
+                    proposal_id: "prop-1".to_string()
+                }
+            ).unwrap();
+        }
+    } 
 }

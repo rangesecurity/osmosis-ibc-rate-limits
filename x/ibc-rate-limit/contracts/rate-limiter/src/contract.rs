@@ -16,7 +16,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -27,7 +27,7 @@ pub fn instantiate(
     // grant the gov address full permissions
     RBAC_PERMISSIONS.save(deps.storage, msg.gov_module.to_string(), &Roles::all_roles())?;
 
-    execute::add_new_paths(deps, msg.paths, env.block.time)?;
+    execute::add_new_paths(&mut deps, msg.paths, env.block.time)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -37,50 +37,14 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     // check to see if special permissions are required to invoke the message, and that the sender has the required permissions
     crate::rbac::can_invoke_message(&deps, &info, &msg)?;
-    match msg {
-        ExecuteMsg::AddPath {
-            channel_id,
-            denom,
-            quotas,
-        } => execute::try_add_path(deps, channel_id, denom, quotas, env.block.time),
-        ExecuteMsg::RemovePath { channel_id, denom } => {
-            execute::try_remove_path(deps, channel_id, denom)
-        }
-        ExecuteMsg::ResetPathQuota {
-            channel_id,
-            denom,
-            quota_id,
-        } => execute::try_reset_path_quota(
-            deps,
-            channel_id,
-            denom,
-            quota_id,
-            env.block.time,
-        ),
-        ExecuteMsg::GrantRole { signer, roles } => todo!(),
-        ExecuteMsg::RevokeRole { signer, roles } => todo!(),
-        ExecuteMsg::EditPathQuota {
-            channel_id,
-            denom,
-            quota,
-        } => todo!(),
-        ExecuteMsg::RemoveProposal { proposal_id } => todo!(),
-        ExecuteMsg::SetTimelockDelay { signer, hours } => {
-            crate::rbac::set_timelock_delay(deps, signer.clone(), hours)?;
-            Ok(Response::new()
-                .add_attribute("method", "set_timelock_delay")
-                .add_attribute("signer", signer)
-                .add_attribute("hours", hours.to_string()))
-        }
-        ExecuteMsg::ProcessProposals { count } => todo!(),
-    }
+    match_execute(&mut deps, &env, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -132,4 +96,49 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     RBAC_PERMISSIONS.save(deps.storage, gov_module.to_string(), &Roles::all_roles())?;
 
     Ok(Response::new().add_attribute("method", "migrate"))
+}
+
+
+pub(crate) fn match_execute(
+    deps: &mut DepsMut,
+    env: &Env,
+    msg: ExecuteMsg
+) -> Result<Response, ContractError> {
+    match msg {
+        ExecuteMsg::AddPath {
+            channel_id,
+            denom,
+            quotas,
+        } => execute::try_add_path(deps, channel_id, denom, quotas, env.block.time),
+        ExecuteMsg::RemovePath { channel_id, denom } => {
+            execute::try_remove_path(deps, channel_id, denom)
+        }
+        ExecuteMsg::ResetPathQuota {
+            channel_id,
+            denom,
+            quota_id,
+        } => execute::try_reset_path_quota(
+            deps,
+            channel_id,
+            denom,
+            quota_id,
+            env.block.time,
+        ),
+        ExecuteMsg::GrantRole { signer, roles } => todo!(),
+        ExecuteMsg::RevokeRole { signer, roles } => todo!(),
+        ExecuteMsg::EditPathQuota {
+            channel_id,
+            denom,
+            quota,
+        } => todo!(),
+        ExecuteMsg::RemoveProposal { proposal_id } => todo!(),
+        ExecuteMsg::SetTimelockDelay { signer, hours } => {
+            crate::rbac::set_timelock_delay(deps, signer.clone(), hours)?;
+            Ok(Response::new()
+                .add_attribute("method", "set_timelock_delay")
+                .add_attribute("signer", signer)
+                .add_attribute("hours", hours.to_string()))
+        }
+        ExecuteMsg::ProcessProposals { count } => todo!(),
+    }
 }

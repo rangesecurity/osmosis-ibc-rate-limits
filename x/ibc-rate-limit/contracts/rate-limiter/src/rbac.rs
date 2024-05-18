@@ -27,7 +27,7 @@ pub fn can_invoke_message(
 }
 
 pub fn set_timelock_delay(
-    deps: DepsMut,
+    deps: &mut DepsMut,
     signer: String,
     hours: u64
 ) -> Result<(), ContractError> {
@@ -45,7 +45,7 @@ mod test {
     fn test_set_timelock_delay() {
         let mut deps = mock_dependencies();
         assert!(TIMELOCK_DELAY.load(&deps.storage, "foobar".to_string()).is_err());
-        set_timelock_delay(deps.as_mut(), "foobar".to_string(), 6).unwrap();
+        set_timelock_delay(&mut deps.as_mut(), "foobar".to_string(), 6).unwrap();
         assert_eq!(TIMELOCK_DELAY.load(&deps.storage, "foobar".to_string()).unwrap(), 6);
     }
     #[test]

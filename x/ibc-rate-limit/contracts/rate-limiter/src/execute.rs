@@ -4,7 +4,7 @@ use crate::ContractError;
 use cosmwasm_std::{Addr, DepsMut, Response, Timestamp};
 
 pub fn add_new_paths(
-    deps: DepsMut,
+    deps: &mut DepsMut,
     path_msgs: Vec<PathMsg>,
     now: Timestamp,
 ) -> Result<(), ContractError> {
@@ -28,7 +28,7 @@ pub fn add_new_paths(
 }
 
 pub fn try_add_path(
-    deps: DepsMut,
+    deps: &mut DepsMut,
     channel_id: String,
     denom: String,
     quotas: Vec<QuotaMsg>,
@@ -43,7 +43,7 @@ pub fn try_add_path(
 }
 
 pub fn try_remove_path(
-    deps: DepsMut,
+    deps: &mut DepsMut,
     channel_id: String,
     denom: String,
 ) -> Result<Response, ContractError> {
@@ -57,7 +57,7 @@ pub fn try_remove_path(
 
 // Reset specified quote_id for the given channel_id
 pub fn try_reset_path_quota(
-    deps: DepsMut,
+    deps: &mut DepsMut,
     channel_id: String,
     denom: String,
     quota_id: String,
