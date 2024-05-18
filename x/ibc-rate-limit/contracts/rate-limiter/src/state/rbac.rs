@@ -42,3 +42,53 @@ pub struct QueuedProposal {
     /// Can be used to remove a proposal from the queue without processing it
     pub proposal_id: String,
 }
+
+impl Roles {
+    /// helper function that returns a vec containing all variants of the Roles enum
+    pub fn all_roles() -> Vec<Roles> {
+        vec![
+            Roles::AddRateLimit,
+            Roles::RemoveRateLimit,
+            Roles::ResetPathQuota,
+            Roles::EditPathQuota,
+            Roles::GrantRole,
+            Roles::RevokeRole,
+            Roles::RemoveProposal,
+            Roles::SetTimelockDelay,
+        ]
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_all_roles() {
+        let roles = Roles::all_roles();
+        assert!(
+            roles.contains(&Roles::AddRateLimit)
+        );
+        assert!(
+            roles.contains(&Roles::RemoveRateLimit)
+        );
+        assert!(
+            roles.contains(&Roles::ResetPathQuota)
+        );
+        assert!(
+            roles.contains(&Roles::EditPathQuota)
+        );
+        assert!(
+            roles.contains(&Roles::GrantRole)
+        );
+        assert!(
+            roles.contains(&Roles::RevokeRole)
+        );
+        assert!(
+            roles.contains(&Roles::RemoveProposal)
+        );
+        assert!(
+            roles.contains(&Roles::SetTimelockDelay)
+        );
+    }
+}

@@ -5,6 +5,8 @@ use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
+use crate::state::rbac::Roles;
+use crate::state::storage::RBAC_PERMISSIONS;
 use crate::state::{flow::FlowType, storage::{GOVMODULE, IBCMODULE}};
 use crate::{execute, query, sudo};
 
@@ -22,6 +24,8 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     IBCMODULE.save(deps.storage, &msg.ibc_module)?;
     GOVMODULE.save(deps.storage, &msg.gov_module)?;
+    // grant the gov address full permissions
+    RBAC_PERMISSIONS.save(deps.storage, msg.gov_module.to_string(), &Roles::all_roles())?;
 
     execute::add_new_paths(deps, msg.paths, env.block.time)?;
 
