@@ -125,6 +125,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    unimplemented!()
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    let gov_module = GOVMODULE.load(deps.storage)?;
+    
+    // grant the gov address full permissions
+    RBAC_PERMISSIONS.save(deps.storage, gov_module.to_string(), &Roles::all_roles())?;
+
+    Ok(Response::new().add_attribute("method", "migrate"))
 }

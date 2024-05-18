@@ -146,7 +146,7 @@ pub enum SudoMsg {
 }
 
 #[cw_serde]
-pub enum MigrateMsg {}
+pub struct MigrateMsg {}
 
 
 impl ExecuteMsg {
