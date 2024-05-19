@@ -38,39 +38,35 @@ pub fn process_proposal_queue(deps: &mut DepsMut, env: Env, count: usize) -> Res
 }
 
 /// Given a message to execute, insert into the proposal queued with execution delayed by the timelock that is applied to the sender of the message
+/// 
+/// Returns the id of the queued proposal
+/// 
 /// TODO: test
 pub fn queue_proposal(
     deps: DepsMut,
     env: Env,
     msg: ExecuteMsg,
     info: MessageInfo
-) -> Result<(), ContractError> {
+) -> Result<String, ContractError> {
     
-    //The timelocking functionality only applies to specific message types
-    // so check the incoming message to see if time
     let timelock_delay = TIMELOCK_DELAY.load(deps.storage, info.sender.to_string())?;
-
-    // if the current timelock delay is 0, proposals are executed immediately without any delay
-    if timelock_delay == 0 {
-        // invoke functions that process the individual `ExecuteMsg` variants
-        return Ok(());
-    }
+    let proposal_id = format!("{}_{}", env.block.height, env.transaction.unwrap().index);
     PROPOSAL_QUEUE.push_back(
         deps.storage,
         &QueuedProposal {
-            proposal_id: format!("{}_{}", env.block.height, env.transaction.unwrap().index),
+            proposal_id: proposal_id.clone(),
             message: msg,
             timelock_delay,
             submitted_at: env.block.time,
         },
     )?;
-    Ok(())
+    Ok(proposal_id)
 }
 
 /// Check to see if the message sender has a non-zero timelock delay configured
 /// TODO: test
 pub fn must_queue_proposal(
-    deps: DepsMut,
+    deps: &mut DepsMut,
     info: &MessageInfo
 ) -> bool {
     // if a non zero value is set, then it means a timelock delay is required

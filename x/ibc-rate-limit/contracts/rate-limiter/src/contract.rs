@@ -44,7 +44,19 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     // check to see if special permissions are required to invoke the message, and that the sender has the required permissions
     crate::rbac::can_invoke_message(&deps, &info, &msg)?;
-    match_execute(&mut deps, &env, msg)
+    // check to see if messages sent by MessageInfo::sender require a timelock
+    //
+    // if a timelock is required the message must be queued for execution
+    if crate::proposal_queue::must_queue_proposal(
+        &mut deps,
+        &info
+    ) {
+        let proposal_id = crate::proposal_queue::queue_proposal(deps, env, msg, info)?;
+        Ok(Response::new().add_attribute("proposal.id", proposal_id))
+    } else {
+        match_execute(&mut deps, &env, msg)
+    }
+    
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
