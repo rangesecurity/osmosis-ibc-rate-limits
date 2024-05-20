@@ -94,20 +94,20 @@ pub enum ExecuteMsg {
         /// similar to ResetPathQuota, but QuotaMsg::Name is used as the quota_id
         quota: QuotaMsg,
     },
-    /// Used to remove a proposal from the proposal queue to prevent execution
-    RemoveProposal {
-        proposal_id: String,
+    /// Used to remove a message from the message queue to prevent execution
+    RemoveMessage {
+        message_id: String,
     },
-    /// Used to change the timelock delay for newly submitted proposals
+    /// Used to change the timelock delay for newly submitted messages
     SetTimelockDelay {
         /// the address to apply the timelock delay to
         signer: String,
         hours: u64,
     },
     /// Permissionless message that anyone can invoke to trigger execution
-    /// of queued proposals that have passed the timelock delay
-    ProcessProposals {
-        /// number of queued proposals to process, a value of 0 will attempt to process all queued proposals
+    /// of queued messages that have passed the timelock delay
+    ProcessMessages {
+        /// number of queued messages to process, a value of 0 will attempt to process all queued messages
         count: u64,
     },
 }
@@ -167,9 +167,9 @@ impl ExecuteMsg {
             Self::GrantRole { .. } => Some(Roles::GrantRole),
             Self::RevokeRole { .. } => Some(Roles::RevokeRole),
             Self::EditPathQuota { .. } => Some(Roles::EditPathQuota),
-            Self::RemoveProposal { .. } => Some(Roles::RemoveProposal),
+            Self::RemoveMessage { .. } => Some(Roles::RemoveMessage),
             Self::SetTimelockDelay  { .. } => Some(Roles::SetTimelockDelay),
-            Self::ProcessProposals { .. } => None
+            Self::ProcessMessages { .. } => None
         }
     }
 }

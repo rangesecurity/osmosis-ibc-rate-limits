@@ -10,7 +10,7 @@ use crate::{msg::ExecuteMsg, state::{rbac::QueuedMessage, storage::{MESSAGE_QUEU
 /// 
 /// Because we iterate over the queue by popping items from the front, multiple transactions can be issued
 /// in sequence to iterate over the queue
-pub fn process_message_queue(deps: &mut DepsMut, env: Env, count: usize) -> Result<(), ContractError> {
+pub fn process_message_queue(deps: &mut DepsMut, env: &Env, count: usize) -> Result<(), ContractError> {
     let queue_len = MESSAGE_QUEUE.len(deps.storage)? as usize;
     
     for idx in 0..queue_len {
@@ -181,28 +181,28 @@ mod tests {
 
         process_message_queue(
             &mut deps,
-            env.clone(),
+            &env.clone(),
             1
         ).unwrap();
         assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 9);
 
         process_message_queue(
             &mut deps,
-            env.clone(),
+            &env.clone(),
             0,
         ).unwrap();
         assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 9);
 
         process_message_queue(
             &mut deps,
-            env.clone(),
+            &env.clone(),
             5,
         ).unwrap();
         assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 4);
 
         process_message_queue(
             &mut deps,
-            env.clone(),
+            &env.clone(),
             10,
         ).unwrap();
         assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 0);
@@ -233,7 +233,7 @@ mod tests {
         // no messages should be processed as not enough time has passed
         process_message_queue(
             &mut deps,
-            env.clone(),
+            &env.clone(),
             10
         ).unwrap();
 
@@ -245,7 +245,7 @@ mod tests {
         // one message should be processed
         process_message_queue(
             &mut deps,
-            env.clone(),
+            &env.clone(),
             10
         ).unwrap();
 
@@ -260,7 +260,7 @@ mod tests {
         // 2 messages should be processed,
         process_message_queue(
             &mut deps,
-            env.clone(),
+            &env.clone(),
             10
         ).unwrap();
 
@@ -275,7 +275,7 @@ mod tests {
         // all messages should be processed
         process_message_queue(
             &mut deps,
-            env.clone(),
+            &env.clone(),
             10
         ).unwrap();
 

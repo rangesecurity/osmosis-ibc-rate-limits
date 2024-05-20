@@ -8,7 +8,7 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
 use crate::state::rbac::Roles;
 use crate::state::storage::RBAC_PERMISSIONS;
 use crate::state::{flow::FlowType, storage::{GOVMODULE, IBCMODULE}};
-use crate::{execute, query, sudo};
+use crate::{execute, message_queue, query, rbac, sudo};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:rate-limiter";
@@ -51,8 +51,8 @@ pub fn execute(
         &mut deps,
         &info
     ) {
-        let proposal_id = crate::message_queue::queue_message(&mut deps, env, msg, info)?;
-        Ok(Response::new().add_attribute("proposal.id", proposal_id))
+        let message_id = crate::message_queue::queue_message(&mut deps, env, msg, info)?;
+        Ok(Response::new().add_attribute("message.id", message_id))
     } else {
         match_execute(&mut deps, &env, msg)
     }
@@ -139,14 +139,20 @@ pub(crate) fn match_execute(
             quota_id,
             env.block.time,
         ),
-        ExecuteMsg::GrantRole { signer, roles } => todo!(),
-        ExecuteMsg::RevokeRole { signer, roles } => todo!(),
+        ExecuteMsg::GrantRole { signer, roles } => {
+            rbac::grant_role(deps, signer, roles)?;
+            Ok(Response::new().add_attribute("method", "grant_role"))
+        },
+        ExecuteMsg::RevokeRole { signer, roles } => {
+            rbac::revoke_role(deps, signer, roles)?;
+            Ok(Response::new().add_attribute("method", "revoke_role"))
+        },
         ExecuteMsg::EditPathQuota {
             channel_id,
             denom,
             quota,
         } => todo!(),
-        ExecuteMsg::RemoveProposal { proposal_id } => todo!(),
+        ExecuteMsg::RemoveMessage { message_id } => todo!(),
         ExecuteMsg::SetTimelockDelay { signer, hours } => {
             crate::rbac::set_timelock_delay(deps, signer.clone(), hours)?;
             Ok(Response::new()
@@ -154,6 +160,13 @@ pub(crate) fn match_execute(
                 .add_attribute("signer", signer)
                 .add_attribute("hours", hours.to_string()))
         }
-        ExecuteMsg::ProcessProposals { count } => todo!(),
+        ExecuteMsg::ProcessMessages { count } => {
+            message_queue::process_message_queue(
+                deps,
+                env,
+                count as usize
+            )?;
+            Ok(Response::new().add_attribute("method", "process_messages"))
+        },
     }
 }

@@ -37,12 +37,12 @@ pub const IBCMODULE: Item<Addr> = Item::new("ibc_module");
 pub const RATE_LIMIT_TRACKERS: Map<(String, String), Vec<RateLimit>> = Map::new("flow");
 
 /// Maps address -> delay, automatically applying a timelock delay to all 
-/// proposals submitted by a specific address
+/// messages submitted by a specific address
 pub const TIMELOCK_DELAY: Map<String, u64> = Map::new("timelock_delay");
 
-/// Storage variable which is used to queue messages for execution that are the result of a successful dao proposal.
-/// In order for the message to be processed, X hours must past from QueuedProposal::submited_at
-pub const MESSAGE_QUEUE: Deque<QueuedMessage> = Deque::new("proposals");
+/// Storage variable which is used to queue messages for execution that are the result of a successful dao message.
+/// In order for the message to be processed, X hours must past from QueuedMessage::submited_at
+pub const MESSAGE_QUEUE: Deque<QueuedMessage> = Deque::new("queued_messages");
 
 /// Storage variable that is used to map signing addresses and the permissions they have been granted
 pub const RBAC_PERMISSIONS: Map<String, HashSet<Roles>> = Map::new("rbac");

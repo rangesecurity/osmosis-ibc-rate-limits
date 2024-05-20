@@ -23,19 +23,19 @@ pub enum Roles {
     GrantRole,
     /// Has the ability to revoke granted roles to an address
     RevokeRole,
-    /// Has the ability to remove queued proposals
-    RemoveProposal,
+    /// Has the ability to remove queued messages
+    RemoveMessage,
     /// Has the ability to alter timelock delay's
     SetTimelockDelay,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct QueuedMessage {
-    /// the message that submitted to the contract after a successful proposal
+    /// the message that submitted to the contract after a sucessful governance proposal
     pub message: ExecuteMsg,
     /// the time which the message was processed by the contract
     pub submitted_at: Timestamp,
-    /// the timelock delay that was in place when the proposal was queued for execution
+    /// the timelock delay that was in place when the message was queued for execution
     pub timelock_delay: u64,
     /// Constructed using format!("{}_{}", Env::BlockInfo::Height Env::Transaction::Index)
     ///
@@ -53,7 +53,7 @@ impl Roles {
             Roles::EditPathQuota,
             Roles::GrantRole,
             Roles::RevokeRole,
-            Roles::RemoveProposal,
+            Roles::RemoveMessage,
             Roles::SetTimelockDelay,
         ]
     }
@@ -85,7 +85,7 @@ mod test {
             roles.contains(&Roles::RevokeRole)
         );
         assert!(
-            roles.contains(&Roles::RemoveProposal)
+            roles.contains(&Roles::RemoveMessage)
         );
         assert!(
             roles.contains(&Roles::SetTimelockDelay)

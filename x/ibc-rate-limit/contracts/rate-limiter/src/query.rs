@@ -26,12 +26,12 @@ pub fn get_roles(storage: &dyn Storage, owner: String) -> StdResult<Binary> {
     to_binary(&RBAC_PERMISSIONS.load(storage, owner)?)
 }
 
-/// Returns the id's of all queued proposals
+/// Returns the id's of all queued messages
 pub fn get_message_ids(storage: &dyn Storage) -> StdResult<Binary> {
     to_binary(
         &MESSAGE_QUEUE
             .iter(storage)?
-            .filter_map(|proposal| Some(proposal.ok()?.message_id))
+            .filter_map(|message| Some(message.ok()?.message_id))
             .collect::<Vec<_>>(),
     )
 }
@@ -129,7 +129,7 @@ mod test {
     }
 
     #[test]
-    fn test_get_proposal_ids() {
+    fn test_get_messageids() {
         let mut deps = mock_dependencies();
         let response = get_message_ids(deps.as_ref().storage).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
@@ -140,7 +140,7 @@ mod test {
                 &mut deps.storage,
                 &QueuedMessage {
                     message_id: "prop-1".to_string(),
-                    message: ExecuteMsg::ProcessProposals { count: 1 },
+                    message: ExecuteMsg::ProcessMessages { count: 1 },
                     submitted_at: Timestamp::default(),
                     timelock_delay: 0,
                 },
@@ -151,7 +151,7 @@ mod test {
                 &mut deps.storage,
                 &QueuedMessage {
                     message_id: "prop-2".to_string(),
-                    message: ExecuteMsg::ProcessProposals { count: 1 },
+                    message: ExecuteMsg::ProcessMessages { count: 1 },
                     submitted_at: Timestamp::default(),
                     timelock_delay: 0,
                 },
