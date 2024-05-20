@@ -70,7 +70,7 @@ mod test {
             .save(
                 &mut deps.storage,
                 "foobar".to_string(),
-                &vec![Roles::SetTimelockDelay],
+                &vec![Roles::SetTimelockDelay].into_iter().collect(),
             )
             .unwrap();
         let response = get_role_owners(deps.as_ref().storage).unwrap();
@@ -83,7 +83,7 @@ mod test {
             .save(
                 &mut deps.storage,
                 "foobarbaz".to_string(),
-                &vec![Roles::SetTimelockDelay],
+                &vec![Roles::SetTimelockDelay].into_iter().collect(),
             )
             .unwrap();
         let response = get_role_owners(deps.as_ref().storage).unwrap();
@@ -105,7 +105,7 @@ mod test {
             .save(
                 &mut deps.storage,
                 "foobar".to_string(),
-                &vec![Roles::SetTimelockDelay],
+                &vec![Roles::SetTimelockDelay].into_iter().collect(),
             )
             .unwrap();
         let response = get_roles(deps.as_ref().storage, "foobar".to_string()).unwrap();
@@ -118,7 +118,7 @@ mod test {
             .save(
                 &mut deps.storage,
                 "foobar".to_string(),
-                &vec![Roles::SetTimelockDelay, Roles::EditPathQuota],
+                &vec![Roles::SetTimelockDelay, Roles::EditPathQuota].into_iter().collect(),
             )
             .unwrap();
         let response = get_roles(deps.as_ref().storage, "foobar".to_string()).unwrap();

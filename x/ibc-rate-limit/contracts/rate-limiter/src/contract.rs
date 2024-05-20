@@ -25,7 +25,7 @@ pub fn instantiate(
     IBCMODULE.save(deps.storage, &msg.ibc_module)?;
     GOVMODULE.save(deps.storage, &msg.gov_module)?;
     // grant the gov address full permissions
-    RBAC_PERMISSIONS.save(deps.storage, msg.gov_module.to_string(), &Roles::all_roles())?;
+    RBAC_PERMISSIONS.save(deps.storage, msg.gov_module.to_string(), &Roles::all_roles().into_iter().collect())?;
 
     execute::add_new_paths(&mut deps, msg.paths, env.block.time)?;
 
@@ -106,12 +106,14 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     let gov_module = GOVMODULE.load(deps.storage)?;
     
     // grant the gov address full permissions
-    RBAC_PERMISSIONS.save(deps.storage, gov_module.to_string(), &Roles::all_roles())?;
+    RBAC_PERMISSIONS.save(deps.storage, gov_module.to_string(), &Roles::all_roles().into_iter().collect())?;
 
     Ok(Response::new().add_attribute("method", "migrate"))
 }
 
-
+/// Processes `msg` and executes the corresponding message handler
+/// 
+/// This shouldn't be called directly and instead invoked by the `execute` function, or internally via message queue processing
 pub(crate) fn match_execute(
     deps: &mut DepsMut,
     env: &Env,

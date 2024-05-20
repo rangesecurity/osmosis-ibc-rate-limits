@@ -1,6 +1,8 @@
+use std::collections::HashSet;
+
 use cosmwasm_std::{DepsMut, MessageInfo};
 
-use crate::{msg::ExecuteMsg, state::storage::{RBAC_PERMISSIONS, TIMELOCK_DELAY}, ContractError};
+use crate::{msg::ExecuteMsg, state::{rbac::Roles, storage::{RBAC_PERMISSIONS, TIMELOCK_DELAY}}, ContractError};
 
 /// Check to see if the sender of the message can invoke the message by holding the required rbac role
 /// 
@@ -26,12 +28,28 @@ pub fn can_invoke_message(
     Err(ContractError::Unauthorized {  })
 }
 
+/// Sets a timelock delay for `signer` of `hours`
 pub fn set_timelock_delay(
     deps: &mut DepsMut,
     signer: String,
     hours: u64
 ) -> Result<(), ContractError> {
     Ok(TIMELOCK_DELAY.save(deps.storage, signer, &hours)?)
+}
+
+pub fn grant_role(
+    deps: &mut DepsMut,
+    signer: String,
+    mut roles: Vec<Roles>
+) -> Result<(), ContractError> {
+    // get the current roles, if no current roles will be an empty vec
+    let mut current_roles = RBAC_PERMISSIONS.load(deps.storage, signer.clone()).unwrap_or_default();
+    for role in roles {
+        current_roles.insert(role);
+    }
+
+    // persist new roles
+    Ok(RBAC_PERMISSIONS.save(deps.storage, signer, &current_roles)?)
 }
 
 #[cfg(test)]
@@ -66,7 +84,7 @@ mod test {
             denom: "denom".into(), 
             quotas: vec![]
         };
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::AddRateLimit]).unwrap();
+        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::AddRateLimit].into_iter().collect()).unwrap();
 
         assert!(can_invoke_message(
             &deps.as_mut(),
@@ -98,7 +116,7 @@ mod test {
             channel_id: "channelid".into(), 
             denom: "denom".into(), 
         };
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::RemoveRateLimit]).unwrap();
+        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::RemoveRateLimit].into_iter().collect()).unwrap();
 
         assert!(can_invoke_message(
             &deps.as_mut(),
@@ -131,7 +149,7 @@ mod test {
             denom: "denom".into(),
             quota_id: "quota".into()
         };
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::ResetPathQuota]).unwrap();
+        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::ResetPathQuota].into_iter().collect()).unwrap();
 
         assert!(can_invoke_message(
             &deps.as_mut(),
@@ -163,7 +181,7 @@ mod test {
             signer: "signer".into(),
             roles: vec![Roles::GrantRole]
         };
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::GrantRole]).unwrap();
+        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::GrantRole].into_iter().collect()).unwrap();
 
         assert!(can_invoke_message(
             &deps.as_mut(),
@@ -195,7 +213,7 @@ mod test {
             signer: "signer".into(),
             roles: vec![Roles::GrantRole]
         };
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::RevokeRole]).unwrap();
+        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::RevokeRole].into_iter().collect()).unwrap();
         assert!(can_invoke_message(
             &deps.as_mut(),
             &info_foobar,
@@ -231,7 +249,7 @@ mod test {
             channel_id: "channel_id".into(),
             denom: "denom".into()
         };
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::EditPathQuota]).unwrap();
+        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::EditPathQuota].into_iter().collect()).unwrap();
         assert!(can_invoke_message(
             &deps.as_mut(),
             &info_foobar,
@@ -261,7 +279,7 @@ mod test {
         let msg = ExecuteMsg::RemoveProposal { 
             proposal_id: "proposal".into()
         };
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::RemoveProposal]).unwrap();
+        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::RemoveProposal].into_iter().collect()).unwrap();
         assert!(can_invoke_message(
             &deps.as_mut(),
             &info_foobar,
@@ -293,7 +311,7 @@ mod test {
             signer: "signer".into(),
             hours: 5,
         };
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::SetTimelockDelay]).unwrap();
+        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::SetTimelockDelay].into_iter().collect()).unwrap();
         assert!(can_invoke_message(
             &deps.as_mut(),
             &info_foobar,

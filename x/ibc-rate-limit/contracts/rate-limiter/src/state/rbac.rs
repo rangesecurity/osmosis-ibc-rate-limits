@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Roles defines the available permissions that can be assigned to addresses as part of the RBAC system
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, PartialOrd, Ord, Hash)]
 pub enum Roles {
     /// Has the ability to add a new rate limit
     AddRateLimit,
