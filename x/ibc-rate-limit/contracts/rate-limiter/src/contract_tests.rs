@@ -4,7 +4,7 @@ use crate::packet::Packet;
 use crate::state::rbac::Roles;
 use crate::{contract::*, test_msg_recv, test_msg_send, ContractError};
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-use cosmwasm_std::{from_binary, Addr, Attribute, Uint256};
+use cosmwasm_std::{from_binary, Addr, Attribute, MessageInfo, Uint256};
 
 use crate::helpers::tests::verify_query_response;
 use crate::msg::{InstantiateMsg, MigrateMsg, PathMsg, QueryMsg, QuotaMsg, SudoMsg};
@@ -408,15 +408,44 @@ fn test_tokenfactory_message() {
 #[test] // Tests we ccan instantiate the contract and that the owners are set correctly
 fn proper_migrate() {
     let mut deps = mock_dependencies();
+    let mut env = mock_env();
 
-    GOVMODULE.save(&mut deps.storage, &Addr::unchecked(GOV_ADDR.to_string())).unwrap();
-    assert_eq!(GOVMODULE.load(deps.as_ref().storage).unwrap(), GOV_ADDR);
-    assert!(RBAC_PERMISSIONS.load(&deps.storage, GOV_ADDR.to_string()).is_err());
+    crate::contract::instantiate(
+        deps.as_mut(),
+        env,
+        MessageInfo {
+            sender: Addr::unchecked("deployer"),
+            funds: vec![]
+        },
+        InstantiateMsg {
+            gov_module: Addr::unchecked(GOV_ADDR),
+            ibc_module: Addr::unchecked(IBC_ADDR),
+            paths: vec![]
+        }
 
-    migrate(deps.as_mut(), mock_env(), MigrateMsg {}).unwrap();
+    ).unwrap();
 
+    // test that instantiate set the correct gov module address and RBAC permissions
     let permissions = RBAC_PERMISSIONS.load(&mut deps.storage, GOV_ADDR.to_string()).unwrap();
     for permission in Roles::all_roles() {
         assert!(permissions.contains(&permission));
     }
+    assert_eq!(GOVMODULE.load(deps.as_ref().storage).unwrap(), GOV_ADDR);
+
+    // revoke all roles from the gov contract, instantiation should re-asssign
+    crate::rbac::revoke_role(
+        &mut deps.as_mut(),
+        GOV_ADDR.to_string(),
+        Roles::all_roles()
+    ).unwrap();
+
+    
+    migrate(deps.as_mut(), mock_env(), MigrateMsg {}).unwrap();
+
+    // ensure migration assigned all the roles
+    let permissions = RBAC_PERMISSIONS.load(&mut deps.storage, GOV_ADDR.to_string()).unwrap();
+    for permission in Roles::all_roles() {
+        assert!(permissions.contains(&permission));
+    }
+
 }

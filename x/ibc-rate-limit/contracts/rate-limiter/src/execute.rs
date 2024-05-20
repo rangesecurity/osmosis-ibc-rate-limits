@@ -131,6 +131,7 @@ mod tests {
     use crate::contract::{execute, query};
     use crate::helpers::tests::verify_query_response;
     use crate::msg::{ExecuteMsg, QueryMsg, QuotaMsg};
+    use crate::state::rbac::Roles;
     use crate::state::{rate_limit::RateLimit, storage::{GOVMODULE, IBCMODULE}};
 
     const IBC_ADDR: &str = "IBC_MODULE";
@@ -145,6 +146,13 @@ mod tests {
         GOVMODULE
             .save(deps.as_mut().storage, &Addr::unchecked(GOV_ADDR))
             .unwrap();
+
+        // grant role to IBC_ADDR
+        crate::rbac::grant_role(
+            &mut deps.as_mut(),
+            IBC_ADDR.to_string(),
+            vec![Roles::AddRateLimit, Roles::RemoveRateLimit]
+        ).unwrap();
 
         let msg = ExecuteMsg::AddPath {
             channel_id: format!("channel"),

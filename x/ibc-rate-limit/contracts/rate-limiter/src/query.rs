@@ -124,8 +124,8 @@ mod test {
         let response = get_roles(deps.as_ref().storage, "foobar".to_string()).unwrap();
         let decoded: Vec<Roles> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 2);
-        assert_eq!(decoded[0], Roles::SetTimelockDelay);
-        assert_eq!(decoded[1], Roles::EditPathQuota);
+        assert!(decoded.contains(&Roles::SetTimelockDelay));
+        assert!(decoded.contains(&Roles::EditPathQuota));
     }
 
     #[test]
