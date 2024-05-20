@@ -93,10 +93,11 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetQuotas { channel_id, denom } => query::get_quotas(deps, channel_id, denom),
-        QueryMsg::GetRoleOwners => query::get_role_owners(deps),
-        QueryMsg::GetRoles { owner } => query::get_roles(deps, owner),
-        QueryMsg::GetMessageIds() => query::get_message_ids(deps),
+        QueryMsg::GetQuotas { channel_id, denom } => query::get_quotas(deps.storage, channel_id, denom),
+        QueryMsg::GetRoleOwners => query::get_role_owners(deps.storage),
+        QueryMsg::GetRoles { owner } => query::get_roles(deps.storage, owner),
+        QueryMsg::GetMessageIds => query::get_message_ids(deps.storage),
+        QueryMsg::GetMessage { id } => query::get_queued_message(deps.storage, id)
     }
 }
 

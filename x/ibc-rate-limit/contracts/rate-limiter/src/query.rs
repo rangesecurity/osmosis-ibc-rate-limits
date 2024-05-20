@@ -1,39 +1,49 @@
 use crate::state::{path::Path, storage::{MESSAGE_QUEUE, RATE_LIMIT_TRACKERS, RBAC_PERMISSIONS}};
-use cosmwasm_std::Order::Ascending;
+use cosmwasm_std::{Order::Ascending, StdError, Storage};
 use cosmwasm_std::{to_binary, Binary, Deps, StdResult};
 
 pub fn get_quotas(
-    deps: Deps,
+    storage: &dyn Storage,
     channel_id: impl Into<String>,
     denom: impl Into<String>,
 ) -> StdResult<Binary> {
     let path = Path::new(channel_id, denom);
-    to_binary(&RATE_LIMIT_TRACKERS.load(deps.storage, path.into())?)
+    to_binary(&RATE_LIMIT_TRACKERS.load(storage, path.into())?)
 }
 
 /// Returns all addresses which have been assigned one or more roles
-pub fn get_role_owners(deps: Deps) -> StdResult<Binary> {
+pub fn get_role_owners(storage: &dyn Storage) -> StdResult<Binary> {
     to_binary(
         &RBAC_PERMISSIONS
-            .keys(deps.storage, None, None, Ascending)
+            .keys(storage, None, None, Ascending)
             .filter_map(|key| key.ok())
             .collect::<Vec<_>>(),
     )
 }
 
 /// Returns all the roles that have been granted to `owner` (if any)
-pub fn get_roles(deps: Deps, owner: String) -> StdResult<Binary> {
-    to_binary(&RBAC_PERMISSIONS.load(deps.storage, owner)?)
+pub fn get_roles(storage: &dyn Storage, owner: String) -> StdResult<Binary> {
+    to_binary(&RBAC_PERMISSIONS.load(storage, owner)?)
 }
 
 /// Returns the id's of all queued proposals
-pub fn get_message_ids(deps: Deps) -> StdResult<Binary> {
+pub fn get_message_ids(storage: &dyn Storage) -> StdResult<Binary> {
     to_binary(
         &MESSAGE_QUEUE
-            .iter(deps.storage)?
+            .iter(storage)?
             .filter_map(|proposal| Some(proposal.ok()?.message_id))
             .collect::<Vec<_>>(),
     )
+}
+
+/// Searches MESSAGE_QUEUE for a message_id matching `id`
+pub fn get_queued_message(storage: &dyn Storage, id: String) -> StdResult<Binary> {
+    to_binary(&MESSAGE_QUEUE.iter(storage)?.find(|message| {
+        let Ok(message) = message else {
+            return false
+        };
+        message.message_id.eq(&id)
+    }).ok_or_else(|| StdError::not_found(id))??)
 }
 
 #[cfg(test)]
