@@ -1,9 +1,9 @@
 use cosmwasm_std::{DepsMut, Env, MessageInfo};
 
-use crate::{msg::ExecuteMsg, state::{rbac::QueuedProposal, storage::{PROPOSAL_QUEUE, TIMELOCK_DELAY}}, error::ContractError};
+use crate::{msg::ExecuteMsg, state::{rbac::QueuedMessage, storage::{MESSAGE_QUEUE, TIMELOCK_DELAY}}, error::ContractError};
 
 
-/// Used to iterate over the proposal queue and process any proposals that have passed the time lock delay.
+/// Used to iterate over the message queue and process any messages that have passed the time lock delay.
 /// 
 /// If count is a non-zero value, we process no more than `count` proposals. This can be used to limit the number
 /// of proposals processed in a single transaction to avoid running into OOG (out of gas) errors.
@@ -13,13 +13,13 @@ use crate::{msg::ExecuteMsg, state::{rbac::QueuedProposal, storage::{PROPOSAL_QU
 /// 
 /// TODO: test
 pub fn process_proposal_queue(deps: &mut DepsMut, env: Env, count: usize) -> Result<(), ContractError> {
-    let queue_len = PROPOSAL_QUEUE.len(deps.storage)? as usize;
+    let queue_len = MESSAGE_QUEUE.len(deps.storage)? as usize;
     
     for idx in 0..queue_len {
         if idx + 1 > count {
             break;
         }
-        if let Some(proposal) = PROPOSAL_QUEUE.pop_front(deps.storage)? {
+        if let Some(proposal) = MESSAGE_QUEUE.pop_front(deps.storage)? {
             // compute the minimum time at which the proposal is unlocked
             let min_unlock = proposal
             .submitted_at
@@ -30,7 +30,7 @@ pub fn process_proposal_queue(deps: &mut DepsMut, env: Env, count: usize) -> Res
             {
                 crate::contract::match_execute(deps, &env, proposal.message)?;
             } else {
-                PROPOSAL_QUEUE.push_back(deps.storage, &proposal)?;
+                MESSAGE_QUEUE.push_back(deps.storage, &proposal)?;
             }
         }
     }
@@ -50,22 +50,22 @@ pub fn queue_proposal(
 ) -> Result<String, ContractError> {
     
     let timelock_delay = TIMELOCK_DELAY.load(deps.storage, info.sender.to_string())?;
-    let proposal_id = format!("{}_{}", env.block.height, env.transaction.unwrap().index);
-    PROPOSAL_QUEUE.push_back(
+    let message_id = format!("{}_{}", env.block.height, env.transaction.unwrap().index);
+    MESSAGE_QUEUE.push_back(
         deps.storage,
-        &QueuedProposal {
-            proposal_id: proposal_id.clone(),
+        &QueuedMessage {
+            message_id: message_id.clone(),
             message: msg,
             timelock_delay,
             submitted_at: env.block.time,
         },
     )?;
-    Ok(proposal_id)
+    Ok(message_id)
 }
 
 /// Check to see if the message sender has a non-zero timelock delay configured
 /// TODO: test
-pub fn must_queue_proposal(
+pub fn must_queue_message(
     deps: &mut DepsMut,
     info: &MessageInfo
 ) -> bool {
@@ -94,34 +94,34 @@ mod tests {
 
         TIMELOCK_DELAY.save(deps.storage, "foobar".to_string(), &1).unwrap();
 
-        assert!(must_queue_proposal(&mut deps, &foobar_info));
-        assert!(!must_queue_proposal(&mut deps, &foobarbaz_info));
+        assert!(must_queue_message(&mut deps, &foobar_info));
+        assert!(!must_queue_message(&mut deps, &foobarbaz_info));
     }
 
     #[test]
-    fn test_process_proposal_queue_basic() {
+    fn test_process_message_queue_basic() {
         // basic test which simply iterates over the proposal queues
         // does include tests with some unlocked items vs some locked items
 
         let mut deps = mock_dependencies();
         let mut deps = deps.as_mut();
         let mut env = mock_env();
-        create_n_proposals(&mut deps, 10);
-        assert_eq!(PROPOSAL_QUEUE.len(deps.storage).unwrap(), 10);
+        create_n_messages(&mut deps, 10);
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 10);
 
         process_proposal_queue(
             &mut deps,
             env.clone(),
             1
         ).unwrap();
-        assert_eq!(PROPOSAL_QUEUE.len(deps.storage).unwrap(), 9);
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 9);
 
         process_proposal_queue(
             &mut deps,
             env.clone(),
             0,
         ).unwrap();
-        assert_eq!(PROPOSAL_QUEUE.len(deps.storage).unwrap(), 9);
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 9);
     }
 
     #[test]
@@ -131,18 +131,18 @@ mod tests {
     }
 
 
-    fn create_n_proposals(deps: &mut DepsMut, n: usize) {
+    fn create_n_messages(deps: &mut DepsMut, n: usize) {
         for i in 0..n {
-            PROPOSAL_QUEUE.push_back(
+            MESSAGE_QUEUE.push_back(
                 deps.storage,
-                &QueuedProposal {
+                &QueuedMessage {
                     message: ExecuteMsg::SetTimelockDelay {
                         signer: "signer".to_string(),
                         hours: i as u64 + 1
                     },
                     submitted_at: Timestamp::default(),
                     timelock_delay: 24,
-                    proposal_id: "prop-1".to_string()
+                    message_id: "prop-1".to_string()
                 }
             ).unwrap();
         }

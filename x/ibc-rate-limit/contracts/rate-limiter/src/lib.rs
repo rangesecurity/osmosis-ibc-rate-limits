@@ -8,7 +8,7 @@ mod state;
 
 pub mod rbac;
 pub mod packet;
-pub mod proposal_queue;
+pub mod message_queue;
 
 // Functions
 mod execute;

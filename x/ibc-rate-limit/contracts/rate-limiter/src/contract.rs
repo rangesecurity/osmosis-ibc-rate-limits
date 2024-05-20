@@ -47,11 +47,11 @@ pub fn execute(
     // check to see if messages sent by MessageInfo::sender require a timelock
     //
     // if a timelock is required the message must be queued for execution
-    if crate::proposal_queue::must_queue_proposal(
+    if crate::message_queue::must_queue_message(
         &mut deps,
         &info
     ) {
-        let proposal_id = crate::proposal_queue::queue_proposal(deps, env, msg, info)?;
+        let proposal_id = crate::message_queue::queue_proposal(deps, env, msg, info)?;
         Ok(Response::new().add_attribute("proposal.id", proposal_id))
     } else {
         match_execute(&mut deps, &env, msg)
@@ -96,7 +96,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetQuotas { channel_id, denom } => query::get_quotas(deps, channel_id, denom),
         QueryMsg::GetRoleOwners => query::get_role_owners(deps),
         QueryMsg::GetRoles { owner } => query::get_roles(deps, owner),
-        QueryMsg::GetProposalIds() => query::get_proposal_ids(deps),
+        QueryMsg::GetMessageIds() => query::get_message_ids(deps),
     }
 }
 

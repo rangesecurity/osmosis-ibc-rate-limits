@@ -1,4 +1,4 @@
-use crate::state::{path::Path, storage::{PROPOSAL_QUEUE, RATE_LIMIT_TRACKERS, RBAC_PERMISSIONS}};
+use crate::state::{path::Path, storage::{MESSAGE_QUEUE, RATE_LIMIT_TRACKERS, RBAC_PERMISSIONS}};
 use cosmwasm_std::Order::Ascending;
 use cosmwasm_std::{to_binary, Binary, Deps, StdResult};
 
@@ -27,11 +27,11 @@ pub fn get_roles(deps: Deps, owner: String) -> StdResult<Binary> {
 }
 
 /// Returns the id's of all queued proposals
-pub fn get_proposal_ids(deps: Deps) -> StdResult<Binary> {
+pub fn get_message_ids(deps: Deps) -> StdResult<Binary> {
     to_binary(
-        &PROPOSAL_QUEUE
+        &MESSAGE_QUEUE
             .iter(deps.storage)?
-            .filter_map(|proposal| Some(proposal.ok()?.proposal_id))
+            .filter_map(|proposal| Some(proposal.ok()?.message_id))
             .collect::<Vec<_>>(),
     )
 }
@@ -42,7 +42,7 @@ mod test {
 
     use crate::{
         msg::ExecuteMsg,
-        state::rbac::{QueuedProposal, Roles},
+        state::rbac::{QueuedMessage, Roles},
     };
 
     use super::*;
@@ -121,33 +121,33 @@ mod test {
     #[test]
     fn test_get_proposal_ids() {
         let mut deps = mock_dependencies();
-        let response = get_proposal_ids(deps.as_ref()).unwrap();
+        let response = get_message_ids(deps.as_ref()).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 0);
         
-        PROPOSAL_QUEUE
+        MESSAGE_QUEUE
             .push_back(
                 &mut deps.storage,
-                &QueuedProposal {
-                    proposal_id: "prop-1".to_string(),
+                &QueuedMessage {
+                    message_id: "prop-1".to_string(),
                     message: ExecuteMsg::ProcessProposals { count: 1 },
                     submitted_at: Timestamp::default(),
                     timelock_delay: 0,
                 },
             )
             .unwrap();
-        PROPOSAL_QUEUE
+        MESSAGE_QUEUE
             .push_back(
                 &mut deps.storage,
-                &QueuedProposal {
-                    proposal_id: "prop-2".to_string(),
+                &QueuedMessage {
+                    message_id: "prop-2".to_string(),
                     message: ExecuteMsg::ProcessProposals { count: 1 },
                     submitted_at: Timestamp::default(),
                     timelock_delay: 0,
                 },
             )
             .unwrap();
-        let response = get_proposal_ids(deps.as_ref()).unwrap();
+        let response = get_message_ids(deps.as_ref()).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 2);
         assert_eq!(decoded[0], "prop-1");

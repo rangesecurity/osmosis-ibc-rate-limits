@@ -3,7 +3,7 @@
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Deque, Item, Map};
 
-use super::{rate_limit::RateLimit, rbac::{QueuedProposal, Roles}};
+use super::{rate_limit::RateLimit, rbac::{QueuedMessage, Roles}};
 
 
 
@@ -40,7 +40,7 @@ pub const TIMELOCK_DELAY: Map<String, u64> = Map::new("timelock_delay");
 
 /// Storage variable which is used to queue messages for execution that are the result of a successful dao proposal.
 /// In order for the message to be processed, X hours must past from QueuedProposal::submited_at
-pub const PROPOSAL_QUEUE: Deque<QueuedProposal> = Deque::new("proposals");
+pub const MESSAGE_QUEUE: Deque<QueuedMessage> = Deque::new("proposals");
 
 /// Storage variable that is used to map signing addresses and the permissions they have been granted
 pub const RBAC_PERMISSIONS: Map<String, Vec<Roles>> = Map::new("rbac");

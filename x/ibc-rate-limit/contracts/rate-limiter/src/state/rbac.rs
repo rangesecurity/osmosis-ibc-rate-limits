@@ -30,7 +30,7 @@ pub enum Roles {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct QueuedProposal {
+pub struct QueuedMessage {
     /// the message that submitted to the contract after a successful proposal
     pub message: ExecuteMsg,
     /// the time which the message was processed by the contract
@@ -39,8 +39,8 @@ pub struct QueuedProposal {
     pub timelock_delay: u64,
     /// Constructed using format!("{}_{}", Env::BlockInfo::Height Env::Transaction::Index)
     ///
-    /// Can be used to remove a proposal from the queue without processing it
-    pub proposal_id: String,
+    /// Can be used to remove a message from the queue without processing it
+    pub message_id: String,
 }
 
 impl Roles {
