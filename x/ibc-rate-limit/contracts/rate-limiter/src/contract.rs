@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use cw2::set_contract_version;
+use cw2::{get_contract_version, set_contract_version};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
@@ -103,12 +103,29 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    let gov_module = GOVMODULE.load(deps.storage)?;
-    
-    // grant the gov address full permissions
-    RBAC_PERMISSIONS.save(deps.storage, gov_module.to_string(), &Roles::all_roles().into_iter().collect())?;
+    let contract_version = get_contract_version(deps.storage)?;
 
-    Ok(Response::new().add_attribute("method", "migrate"))
+    // check contract version, and apply version specific migrations
+    if contract_version.version.eq("0.1.0") {
+        let gov_module = GOVMODULE.load(deps.storage)?;
+    
+        // grant the gov address full permissions
+        RBAC_PERMISSIONS.save(deps.storage, gov_module.to_string(), &Roles::all_roles().into_iter().collect())?;
+    }
+    
+    // update contract version
+    set_contract_version(
+        deps.storage,
+        CONTRACT_NAME,
+        CONTRACT_VERSION
+    )?;
+
+    Ok(
+        Response::new()
+        .add_attribute("method", "migrate")
+        .add_attribute("version.old", contract_version.version)
+        .add_attribute("version.new", CONTRACT_VERSION)
+    )
 }
 
 /// Processes `msg` and executes the corresponding message handler
