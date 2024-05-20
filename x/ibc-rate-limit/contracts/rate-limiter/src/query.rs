@@ -61,7 +61,7 @@ mod test {
         let mut deps = mock_dependencies();
 
         // test getting role owners when no owners exist
-        let response = get_role_owners(deps.as_ref()).unwrap();
+        let response = get_role_owners(deps.as_ref().storage).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
         assert!(decoded.is_empty());
 
@@ -73,7 +73,7 @@ mod test {
                 &vec![Roles::SetTimelockDelay],
             )
             .unwrap();
-        let response = get_role_owners(deps.as_ref()).unwrap();
+        let response = get_role_owners(deps.as_ref().storage).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 1);
         assert_eq!(decoded[0], "foobar");
@@ -86,7 +86,7 @@ mod test {
                 &vec![Roles::SetTimelockDelay],
             )
             .unwrap();
-        let response = get_role_owners(deps.as_ref()).unwrap();
+        let response = get_role_owners(deps.as_ref().storage).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 2);
         assert_eq!(decoded[0], "foobar");
@@ -98,7 +98,7 @@ mod test {
         let mut deps = mock_dependencies();
 
         // test retrieving roles for a missing role owner
-        assert!(get_roles(deps.as_ref(), "foobar".to_string()).is_err());
+        assert!(get_roles(deps.as_ref().storage, "foobar".to_string()).is_err());
 
         // assign roles and test retrieving roles owned by address
         RBAC_PERMISSIONS
@@ -108,7 +108,7 @@ mod test {
                 &vec![Roles::SetTimelockDelay],
             )
             .unwrap();
-        let response = get_roles(deps.as_ref(), "foobar".to_string()).unwrap();
+        let response = get_roles(deps.as_ref().storage, "foobar".to_string()).unwrap();
         let decoded: Vec<Roles> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 1);
         assert_eq!(decoded[0], Roles::SetTimelockDelay);
@@ -121,7 +121,7 @@ mod test {
                 &vec![Roles::SetTimelockDelay, Roles::EditPathQuota],
             )
             .unwrap();
-        let response = get_roles(deps.as_ref(), "foobar".to_string()).unwrap();
+        let response = get_roles(deps.as_ref().storage, "foobar".to_string()).unwrap();
         let decoded: Vec<Roles> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 2);
         assert_eq!(decoded[0], Roles::SetTimelockDelay);
@@ -131,7 +131,7 @@ mod test {
     #[test]
     fn test_get_proposal_ids() {
         let mut deps = mock_dependencies();
-        let response = get_message_ids(deps.as_ref()).unwrap();
+        let response = get_message_ids(deps.as_ref().storage).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 0);
         
@@ -157,7 +157,7 @@ mod test {
                 },
             )
             .unwrap();
-        let response = get_message_ids(deps.as_ref()).unwrap();
+        let response = get_message_ids(deps.as_ref().storage).unwrap();
         let decoded: Vec<String> = from_binary(&response).unwrap();
         assert_eq!(decoded.len(), 2);
         assert_eq!(decoded[0], "prop-1");
