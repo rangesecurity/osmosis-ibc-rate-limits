@@ -1,8 +1,8 @@
 #![cfg(test)]
-use crate::{helpers::RateLimitingContract, msg::ExecuteMsg, test_msg_send, ContractError};
-use cosmwasm_std::{Addr, Coin, Empty, Timestamp, Uint128, Uint256};
+use crate::{helpers::RateLimitingContract, msg::{ExecuteMsg, QueryMsg}, test_msg_send, ContractError};
+use cosmwasm_std::{to_binary, Addr, Coin, Empty, Timestamp, Uint128, Uint256};
 use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper, Executor};
-
+use cosmwasm_std::Querier;
 use crate::{
     msg::{InstantiateMsg, PathMsg, QuotaMsg},
     state::flow::tests::{RESET_TIME_DAILY, RESET_TIME_MONTHLY, RESET_TIME_WEEKLY},
@@ -414,4 +414,295 @@ fn add_paths_later() {
     // Executing the same message again should fail, as it is now rate limited
     let cosmos_msg = cw_rate_limit_contract.sudo(msg);
     app.sudo(cosmos_msg).unwrap_err();
+}
+
+
+#[test]
+fn test_execute_add_path() {
+    let quotas = vec![
+        QuotaMsg::new("daily", RESET_TIME_DAILY, 1, 1),
+        QuotaMsg::new("weekly", RESET_TIME_WEEKLY, 5, 5),
+        QuotaMsg::new("monthly", RESET_TIME_MONTHLY, 5, 5),
+    ];
+
+    let (mut app, cw_rate_limit_contract) = proper_instantiate(vec![PathMsg {
+        channel_id: format!("any"),
+        denom: format!("denom"),
+        quotas,
+    }]);
+
+    let management_msg = ExecuteMsg::AddPath {
+        channel_id: format!("new_channel_id"),
+        denom: format!("new_denom"),
+        quotas: vec![QuotaMsg::new("weekly", RESET_TIME_WEEKLY, 1, 1)],
+    };
+
+    let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
+    // non gov cant invoke
+    assert!(app.execute(Addr::unchecked("foobar"), cosmos_msg.clone()).is_err());
+    // gov addr can invoke
+    app.execute(Addr::unchecked(GOV_ADDR), cosmos_msg.clone()).unwrap();
+
+
+    // Sending 1% to use the daily allowance
+    let msg = test_msg_send!(
+        channel_id: format!("new_channel_id"),
+        denom: format!("new_denom"),
+        channel_value: 101_u32.into(),
+        funds: 1_u32.into()
+    );
+    let cosmos_msg = cw_rate_limit_contract.sudo(msg.clone());
+    app.sudo(cosmos_msg).unwrap();
+
+    let response: Vec<crate::state::rate_limit::RateLimit> = app.wrap().query_wasm_smart(cw_rate_limit_contract.addr(), &QueryMsg::GetQuotas {
+        channel_id: "new_channel_id".to_string(),
+        denom: "new_denom".to_string()
+    }).unwrap();
+    assert_eq!(response.len(), 1);
+    assert_eq!(response[0].flow.outflow, Uint256::one());
+    assert_eq!(response[0].quota.channel_value, Some(Uint256::from_u128(101)));
+
+}
+#[test]
+fn test_execute_remove_path() {
+    let quotas = vec![
+        QuotaMsg::new("daily", RESET_TIME_DAILY, 1, 1),
+        QuotaMsg::new("weekly", RESET_TIME_WEEKLY, 5, 5),
+        QuotaMsg::new("monthly", RESET_TIME_MONTHLY, 5, 5),
+    ];
+
+    let (mut app, cw_rate_limit_contract) = proper_instantiate(vec![PathMsg {
+        channel_id: format!("any"),
+        denom: format!("denom"),
+        quotas,
+    }]);
+
+    let management_msg = ExecuteMsg::RemovePath {
+        channel_id: "any".to_string(),
+        denom: "denom".to_string(),
+    };
+    let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
+    // non gov cant invoke
+    assert!(app.execute(Addr::unchecked("foobar"), cosmos_msg.clone()).is_err());
+    // gov addr can invoke
+    app.execute(Addr::unchecked(GOV_ADDR), cosmos_msg.clone()).unwrap();
+
+    // rate limits should be removed
+    assert!(app.wrap().query_wasm_smart::<crate::state::rate_limit::RateLimit>(cw_rate_limit_contract.addr(), &QueryMsg::GetQuotas {
+        channel_id: "any".to_string(),
+        denom: "denom".to_string()
+    }).is_err());
+
+}
+
+#[test]
+fn test_execute_reset_path_quota() {
+    let quotas = vec![
+        QuotaMsg::new("daily", RESET_TIME_DAILY, 1, 1),
+        QuotaMsg::new("weekly", RESET_TIME_WEEKLY, 5, 5),
+        QuotaMsg::new("monthly", RESET_TIME_MONTHLY, 5, 5),
+    ];
+
+    let (mut app, cw_rate_limit_contract) = proper_instantiate(vec![PathMsg {
+        channel_id: format!("any"),
+        denom: format!("denom"),
+        quotas,
+    }]);
+
+    // Sending 1% to use the daily allowance
+    let msg = test_msg_send!(
+        channel_id: format!("channel"),
+        denom: format!("denom"),
+        channel_value: 101_u32.into(),
+        funds: 1_u32.into()
+    );
+    let cosmos_msg = cw_rate_limit_contract.sudo(msg.clone());
+    app.sudo(cosmos_msg).unwrap();
+
+    let management_msg = ExecuteMsg::ResetPathQuota {
+        channel_id: "any".to_string(),
+        denom: "denom".to_string(),
+        quota_id: "daily".to_string()
+    };
+    let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
+    // non gov cant invoke
+    assert!(app.execute(Addr::unchecked("foobar"), cosmos_msg.clone()).is_err());
+    // gov addr can invoke
+    app.execute(Addr::unchecked(GOV_ADDR), cosmos_msg.clone()).unwrap();
+    
+    let response =  app.wrap().query_wasm_smart::<Vec<crate::state::rate_limit::RateLimit>>(cw_rate_limit_contract.addr(), &QueryMsg::GetQuotas {
+        channel_id: "any".to_string(),
+        denom: "denom".to_string()
+    }).unwrap();
+
+    // daily quota should be reset
+    let daily_quota = response.iter().find(|rate_limit| rate_limit.quota.name.eq("daily")).unwrap();
+    assert_eq!(daily_quota.flow.inflow, Uint256::zero());
+    assert_eq!(daily_quota.flow.outflow, Uint256::zero());
+
+    // weekly and monthly should not be reset
+    let weekly_quota = response.iter().find(|rate_limit| rate_limit.quota.name.eq("weekly")).unwrap();
+    assert_eq!(weekly_quota.flow.inflow, Uint256::zero());
+    assert_eq!(weekly_quota.flow.outflow, Uint256::one());
+
+    let  monthly_quota = response.iter().find(|rate_limit| rate_limit.quota.name.eq("monthly")).unwrap();
+    assert_eq!(monthly_quota.flow.inflow, Uint256::zero());
+    assert_eq!(monthly_quota.flow.outflow, Uint256::one());
+}
+
+#[test]
+fn test_execute_grant_role() {
+    let quotas = vec![
+        QuotaMsg::new("daily", RESET_TIME_DAILY, 1, 1),
+        QuotaMsg::new("weekly", RESET_TIME_WEEKLY, 5, 5),
+        QuotaMsg::new("monthly", RESET_TIME_MONTHLY, 5, 5),
+    ];
+
+    let (mut app, cw_rate_limit_contract) = proper_instantiate(vec![PathMsg {
+        channel_id: format!("any"),
+        denom: format!("denom"),
+        quotas,
+    }]);
+
+    // Sending 1% to use the daily allowance
+    let msg = test_msg_send!(
+        channel_id: format!("channel"),
+        denom: format!("denom"),
+        channel_value: 101_u32.into(),
+        funds: 1_u32.into()
+    );
+    let cosmos_msg = cw_rate_limit_contract.sudo(msg.clone());
+    app.sudo(cosmos_msg).unwrap();
+
+    // TODO 
+}
+#[test]
+fn test_execute_revoke_role() {
+    let quotas = vec![
+        QuotaMsg::new("daily", RESET_TIME_DAILY, 1, 1),
+        QuotaMsg::new("weekly", RESET_TIME_WEEKLY, 5, 5),
+        QuotaMsg::new("monthly", RESET_TIME_MONTHLY, 5, 5),
+    ];
+
+    let (mut app, cw_rate_limit_contract) = proper_instantiate(vec![PathMsg {
+        channel_id: format!("any"),
+        denom: format!("denom"),
+        quotas,
+    }]);
+
+    // Sending 1% to use the daily allowance
+    let msg = test_msg_send!(
+        channel_id: format!("channel"),
+        denom: format!("denom"),
+        channel_value: 101_u32.into(),
+        funds: 1_u32.into()
+    );
+    let cosmos_msg = cw_rate_limit_contract.sudo(msg.clone());
+    app.sudo(cosmos_msg).unwrap();
+
+    // TODO
+}
+#[test]
+fn test_execute_edit_path_quota() {
+    let quotas = vec![
+        QuotaMsg::new("daily", RESET_TIME_DAILY, 1, 1),
+        QuotaMsg::new("weekly", RESET_TIME_WEEKLY, 5, 5),
+        QuotaMsg::new("monthly", RESET_TIME_MONTHLY, 5, 5),
+    ];
+
+    let (mut app, cw_rate_limit_contract) = proper_instantiate(vec![PathMsg {
+        channel_id: format!("any"),
+        denom: format!("denom"),
+        quotas,
+    }]);
+
+    // Sending 1% to use the daily allowance
+    let msg = test_msg_send!(
+        channel_id: format!("channel"),
+        denom: format!("denom"),
+        channel_value: 101_u32.into(),
+        funds: 1_u32.into()
+    );
+    let cosmos_msg = cw_rate_limit_contract.sudo(msg.clone());
+    app.sudo(cosmos_msg).unwrap();
+
+    // TODO
+}
+#[test]
+fn test_execute_remove_message() {
+    let quotas = vec![
+        QuotaMsg::new("daily", RESET_TIME_DAILY, 1, 1),
+        QuotaMsg::new("weekly", RESET_TIME_WEEKLY, 5, 5),
+        QuotaMsg::new("monthly", RESET_TIME_MONTHLY, 5, 5),
+    ];
+
+    let (mut app, cw_rate_limit_contract) = proper_instantiate(vec![PathMsg {
+        channel_id: format!("any"),
+        denom: format!("denom"),
+        quotas,
+    }]);
+
+    // Sending 1% to use the daily allowance
+    let msg = test_msg_send!(
+        channel_id: format!("channel"),
+        denom: format!("denom"),
+        channel_value: 101_u32.into(),
+        funds: 1_u32.into()
+    );
+    let cosmos_msg = cw_rate_limit_contract.sudo(msg.clone());
+    app.sudo(cosmos_msg).unwrap();
+
+    // TODO
+}
+#[test]
+fn test_execute_set_timelock_delay() {
+    let quotas = vec![
+        QuotaMsg::new("daily", RESET_TIME_DAILY, 1, 1),
+        QuotaMsg::new("weekly", RESET_TIME_WEEKLY, 5, 5),
+        QuotaMsg::new("monthly", RESET_TIME_MONTHLY, 5, 5),
+    ];
+
+    let (mut app, cw_rate_limit_contract) = proper_instantiate(vec![PathMsg {
+        channel_id: format!("any"),
+        denom: format!("denom"),
+        quotas,
+    }]);
+
+    // Sending 1% to use the daily allowance
+    let msg = test_msg_send!(
+        channel_id: format!("channel"),
+        denom: format!("denom"),
+        channel_value: 101_u32.into(),
+        funds: 1_u32.into()
+    );
+    let cosmos_msg = cw_rate_limit_contract.sudo(msg.clone());
+     app.sudo(cosmos_msg).unwrap();
+
+    // TODO
+}
+#[test]
+fn test_execute_process_messages() {
+    let quotas = vec![
+        QuotaMsg::new("daily", RESET_TIME_DAILY, 1, 1),
+        QuotaMsg::new("weekly", RESET_TIME_WEEKLY, 5, 5),
+        QuotaMsg::new("monthly", RESET_TIME_MONTHLY, 5, 5),
+    ];
+
+    let (mut app, cw_rate_limit_contract) = proper_instantiate(vec![PathMsg {
+        channel_id: format!("any"),
+        denom: format!("denom"),
+        quotas,
+    }]);
+
+    // Sending 1% to use the daily allowance
+    let msg = test_msg_send!(
+        channel_id: format!("channel"),
+        denom: format!("denom"),
+        channel_value: 101_u32.into(),
+        funds: 1_u32.into()
+    );
+    let cosmos_msg = cw_rate_limit_contract.sudo(msg.clone());
+     app.sudo(cosmos_msg).unwrap();
+
+    // TODO
 }
