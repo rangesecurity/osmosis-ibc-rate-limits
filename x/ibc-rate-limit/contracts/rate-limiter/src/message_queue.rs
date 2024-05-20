@@ -5,41 +5,38 @@ use crate::{msg::ExecuteMsg, state::{rbac::QueuedMessage, storage::{MESSAGE_QUEU
 
 /// Used to iterate over the message queue and process any messages that have passed the time lock delay.
 /// 
-/// If count is a non-zero value, we process no more than `count` proposals. This can be used to limit the number
-/// of proposals processed in a single transaction to avoid running into OOG (out of gas) errors.
+/// If count is a non-zero value, we process no more than `count` message. This can be used to limit the number
+/// of message processed in a single transaction to avoid running into OOG (out of gas) errors.
 /// 
 /// Because we iterate over the queue by popping items from the front, multiple transactions can be issued
 /// in sequence to iterate over the queue
-/// 
-/// TODO: test
-pub fn process_proposal_queue(deps: &mut DepsMut, env: Env, count: usize) -> Result<(), ContractError> {
+pub fn process_message_queue(deps: &mut DepsMut, env: Env, count: usize) -> Result<(), ContractError> {
     let queue_len = MESSAGE_QUEUE.len(deps.storage)? as usize;
     
     for idx in 0..queue_len {
         if idx + 1 > count {
             break;
         }
-        if let Some(proposal) = MESSAGE_QUEUE.pop_front(deps.storage)? {
-            // compute the minimum time at which the proposal is unlocked
-            let min_unlock = proposal
+        if let Some(message) = MESSAGE_QUEUE.pop_front(deps.storage)? {
+            // compute the minimum time at which the message is unlocked
+            let min_unlock = message
             .submitted_at
-            .plus_seconds(proposal.timelock_delay * 60 * 60);
-            
+            .plus_seconds(message.timelock_delay * 60 * 60);
             // check to see if the timelock delay has passed, which we need to first convert from hours int oseconds
             if env.block.time.ge(&min_unlock)
             {
-                crate::contract::match_execute(deps, &env, proposal.message)?;
+                crate::contract::match_execute(deps, &env, message.message)?;
             } else {
-                MESSAGE_QUEUE.push_back(deps.storage, &proposal)?;
+                MESSAGE_QUEUE.push_back(deps.storage, &message)?;
             }
         }
     }
     Ok(())
 }
 
-/// Given a message to execute, insert into the proposal queued with execution delayed by the timelock that is applied to the sender of the message
+/// Given a message to execute, insert into the message queued with execution delayed by the timelock that is applied to the sender of the message
 /// 
-/// Returns the id of the queued proposal
+/// Returns the id of the queued message
 pub fn queue_message(
     deps: &mut DepsMut,
     env: Env,
@@ -79,7 +76,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_must_queue_proposal() {
+    fn test_must_queue_message() {
         let mut deps = mock_dependencies();
         let mut deps = deps.as_mut();
         let foobar_info = MessageInfo {
@@ -173,39 +170,124 @@ mod tests {
 
     #[test]
     fn test_process_message_queue_basic() {
-        // basic test which simply iterates over the proposal queues
+        // basic test which simply iterates over the message queues
         // does include tests with some unlocked items vs some locked items
 
         let mut deps = mock_dependencies();
         let mut deps = deps.as_mut();
         let mut env = mock_env();
-        create_n_messages(&mut deps, 10);
+        create_n_messages(&mut deps, 10, &mut |_i: u64| { Timestamp::default() });
         assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 10);
 
-        process_proposal_queue(
+        process_message_queue(
             &mut deps,
             env.clone(),
             1
         ).unwrap();
         assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 9);
 
-        process_proposal_queue(
+        process_message_queue(
             &mut deps,
             env.clone(),
             0,
         ).unwrap();
         assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 9);
+
+        process_message_queue(
+            &mut deps,
+            env.clone(),
+            5,
+        ).unwrap();
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 4);
+
+        process_message_queue(
+            &mut deps,
+            env.clone(),
+            10,
+        ).unwrap();
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 0);
     }
 
     #[test]
-    fn test_process_proposal_queue_complete() {
-        // complete proposal queues testing, including some locked vs unlocked
+    fn test_process_message_queue_complete() {
+        // complete message queues testing, including some locked vs unlocked
         // as well as validating execution
+
+        let mut deps = mock_dependencies();
+        let mut deps = deps.as_mut();
+        let mut env = mock_env();
+
+        // starting time for tests, may 20th 12:32am PST
+        let time = Timestamp::from_seconds(1716190293);
+        env.block.time = time;
+
+        create_n_messages(
+            &mut deps,
+            10,
+            &mut |i: u64| {
+                // increment time by 1 hour * i
+                time.plus_seconds(3600 * i)
+            }
+        );
+
+        // no messages should be processed as not enough time has passed
+        process_message_queue(
+            &mut deps,
+            env.clone(),
+            10
+        ).unwrap();
+
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 10);
+
+        // increase time by 24 hours
+        env.block.time = env.block.time.plus_seconds(3600 * 24);
+
+        // one message should be processed
+        process_message_queue(
+            &mut deps,
+            env.clone(),
+            10
+        ).unwrap();
+
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 9);
+
+        // signer should have a timelock delay of 1 hour
+        assert_eq!(TIMELOCK_DELAY.load(deps.storage, "signer".to_string()).unwrap(), 1);
+
+        // advance time by 2 hours
+        env.block.time = env.block.time.plus_seconds(3600 * 2);
+
+        // 2 messages should be processed,
+        process_message_queue(
+            &mut deps,
+            env.clone(),
+            10
+        ).unwrap();
+
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 7);
+
+        //signer should have a timelock delay of 3 hours
+        assert_eq!(TIMELOCK_DELAY.load(deps.storage, "signer".to_string()).unwrap(), 3);
+
+        // advance time by 24 hours
+        env.block.time = env.block.time.plus_seconds(3600 * 24);
+
+        // all messages should be processed
+        process_message_queue(
+            &mut deps,
+            env.clone(),
+            10
+        ).unwrap();
+
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 0);
+
+        // signer should have a delay of 10 hours
+        assert_eq!(TIMELOCK_DELAY.load(deps.storage, "signer".to_string()).unwrap(), 10);
     }
 
     // helper function which inserts N messages into the message queue
     // message types inserted are of ExecuteMsg::SetTimelockDelay
-    fn create_n_messages(deps: &mut DepsMut, n: usize) {
+    fn create_n_messages(deps: &mut DepsMut, n: usize, ts: &mut dyn FnMut(u64) -> Timestamp) {
         for i in 0..n {
             MESSAGE_QUEUE.push_back(
                 deps.storage,
@@ -214,7 +296,7 @@ mod tests {
                         signer: "signer".to_string(),
                         hours: i as u64 + 1
                     },
-                    submitted_at: Timestamp::default(),
+                    submitted_at: ts(i as u64),
                     timelock_delay: 24,
                     message_id: "prop-1".to_string()
                 }
