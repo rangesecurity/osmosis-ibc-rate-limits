@@ -40,7 +40,7 @@ pub fn set_timelock_delay(
 pub fn grant_role(
     deps: &mut DepsMut,
     signer: String,
-    mut roles: Vec<Roles>
+    roles: Vec<Roles>
 ) -> Result<(), ContractError> {
     // get the current roles, if no current roles will be an empty vec
     let mut current_roles = RBAC_PERMISSIONS.load(deps.storage, signer.clone()).unwrap_or_default();
@@ -49,6 +49,18 @@ pub fn grant_role(
     }
 
     // persist new roles
+    Ok(RBAC_PERMISSIONS.save(deps.storage, signer, &current_roles)?)
+}
+
+pub fn revoke_role(
+    deps: &mut DepsMut,
+    signer: String,
+    roles: Vec<Roles>
+) -> Result<(), ContractError> {
+    let mut current_roles = RBAC_PERMISSIONS.load(deps.storage, signer.clone())?;
+    for role in roles {
+        current_roles.remove(&role);
+    }
     Ok(RBAC_PERMISSIONS.save(deps.storage, signer, &current_roles)?)
 }
 
@@ -263,7 +275,7 @@ mod test {
     }
 
     #[test]
-    fn test_can_invoke_remove_proposal() {
+    fn test_can_invoke_remove_message() {
         let mut deps = mock_dependencies();
 
 
@@ -276,10 +288,10 @@ mod test {
             funds: vec![]
         };
 
-        let msg = ExecuteMsg::RemoveProposal { 
-            proposal_id: "proposal".into()
+        let msg = ExecuteMsg::RemoveMessage { 
+            message_id: "message".into()
         };
-        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::RemoveProposal].into_iter().collect()).unwrap();
+        RBAC_PERMISSIONS.save(&mut deps.storage, "foobar".to_string(), &vec![Roles::RemoveMessage].into_iter().collect()).unwrap();
         assert!(can_invoke_message(
             &deps.as_mut(),
             &info_foobar,
@@ -326,7 +338,7 @@ mod test {
     }
 
     #[test]
-    fn test_can_invoke_process_proposal() {
+    fn test_can_invoke_process_messages() {
         let mut deps = mock_dependencies();
 
 
@@ -339,7 +351,7 @@ mod test {
             funds: vec![]
         };
 
-        let msg = ExecuteMsg::ProcessProposals { count: 1 };
+        let msg = ExecuteMsg::ProcessMessages { count: 1 };
 
         // all addresses should be able to invoke this
         assert!(

@@ -67,6 +67,24 @@ pub fn must_queue_message(
     TIMELOCK_DELAY.load(deps.storage, info.sender.to_string()).unwrap_or(0) > 0
 }
 
+/// Removes a message from the message queue if it matches message_id
+pub fn remove_message(
+    deps: &mut DepsMut,
+    message_id: String,
+) -> Result<(), ContractError> {
+    let queue_len = MESSAGE_QUEUE.len(deps.storage)? as usize;
+    for _ in 0..queue_len {
+        if let Some(message) = MESSAGE_QUEUE.pop_front(deps.storage)? {
+            // if the message_id is not equal to the input message_id then put the message in the back of the queue
+            // this will result in the message to be removed not being put back into the queue
+            if message.message_id.ne(&message_id) {
+                MESSAGE_QUEUE.push_back(deps.storage, &message)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{from_binary, testing::{mock_dependencies, mock_env}, Addr, MemoryStorage, Timestamp, TransactionInfo};

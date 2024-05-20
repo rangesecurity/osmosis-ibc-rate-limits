@@ -151,8 +151,22 @@ pub(crate) fn match_execute(
             channel_id,
             denom,
             quota,
-        } => todo!(),
-        ExecuteMsg::RemoveMessage { message_id } => todo!(),
+        } => {
+            execute::edit_path_quota(
+                deps,
+                channel_id,
+                denom,
+                quota
+            )?;
+            Ok(Response::new().add_attribute("method", "edit_path_quota"))
+        },
+        ExecuteMsg::RemoveMessage { message_id } => {
+            message_queue::remove_message(
+                deps,
+                message_id
+            )?;
+            Ok(Response::new().add_attribute("method", "remove_message"))
+        },
         ExecuteMsg::SetTimelockDelay { signer, hours } => {
             crate::rbac::set_timelock_delay(deps, signer.clone(), hours)?;
             Ok(Response::new()

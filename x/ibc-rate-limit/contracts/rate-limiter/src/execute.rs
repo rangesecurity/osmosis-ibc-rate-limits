@@ -1,4 +1,5 @@
 use crate::msg::{PathMsg, QuotaMsg};
+use crate::state::quota::Quota;
 use crate::state::{flow::Flow, path::Path, rate_limit::RateLimit, storage::{GOVMODULE, IBCMODULE, RATE_LIMIT_TRACKERS}};
 use crate::ContractError;
 use cosmwasm_std::{Addr, DepsMut, Response, Timestamp};
@@ -86,6 +87,40 @@ pub fn try_reset_path_quota(
     Ok(Response::new()
         .add_attribute("method", "try_reset_channel")
         .add_attribute("channel_id", channel_id))
+}
+
+pub fn edit_path_quota(
+    deps: &mut DepsMut,
+    channel_id: String,
+    denom: String,
+    quota: QuotaMsg
+) -> Result<(), ContractError> {
+    let path = Path::new(&channel_id, &denom);
+    RATE_LIMIT_TRACKERS.update(deps.storage, path.into(), |maybe_rate_limit| {
+        match maybe_rate_limit {
+            None => Err(ContractError::QuotaNotFound {
+                quota_id: quota.name,
+                channel_id: channel_id.clone(),
+                denom: denom.clone(),
+            }),
+            Some(mut limits) => {
+                limits.iter_mut().for_each(|limit| {
+                    if limit.quota.name.eq(&quota.name) {
+                        // TODO: is this the current way of handling channel_value when editing the quota?
+
+                        // cache the current channel_value 
+                        let channel_value = limit.quota.channel_value;
+                        // update the quota
+                        limit.quota = From::from(&quota);
+                        // copy the channel_value
+                        limit.quota.channel_value = channel_value;
+                    }
+                });
+                Ok(limits)
+            }
+        }
+    })?;
+    Ok(())
 }
 
 #[cfg(test)]
