@@ -51,7 +51,7 @@ pub fn execute(
         &mut deps,
         &info
     ) {
-        let proposal_id = crate::message_queue::queue_proposal(deps, env, msg, info)?;
+        let proposal_id = crate::message_queue::queue_message(&mut deps, env, msg, info)?;
         Ok(Response::new().add_attribute("proposal.id", proposal_id))
     } else {
         match_execute(&mut deps, &env, msg)
