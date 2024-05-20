@@ -75,9 +75,28 @@ pub fn must_queue_proposal(
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::{testing::{mock_dependencies, mock_env}, MemoryStorage, Timestamp};
+    use cosmwasm_std::{testing::{mock_dependencies, mock_env}, Addr, MemoryStorage, Timestamp};
 
     use super::*;
+
+    #[test]
+    fn test_must_queue_proposal() {
+        let mut deps = mock_dependencies();
+        let mut deps = deps.as_mut();
+        let foobar_info = MessageInfo {
+            sender: Addr::unchecked("foobar"),
+            funds: vec![]
+        };
+        let foobarbaz_info = MessageInfo {
+            sender: Addr::unchecked("foobarbaz"),
+            funds: vec![]
+        };
+
+        TIMELOCK_DELAY.save(deps.storage, "foobar".to_string(), &1).unwrap();
+
+        assert!(must_queue_proposal(&mut deps, &foobar_info));
+        assert!(!must_queue_proposal(&mut deps, &foobarbaz_info));
+    }
 
     #[test]
     fn test_process_proposal_queue_basic() {
