@@ -37,6 +37,7 @@ pub fn set_timelock_delay(
     Ok(TIMELOCK_DELAY.save(deps.storage, signer, &hours)?)
 }
 
+/// Grants `roles` to `signer`
 pub fn grant_role(
     deps: &mut DepsMut,
     signer: String,
@@ -52,6 +53,7 @@ pub fn grant_role(
     Ok(RBAC_PERMISSIONS.save(deps.storage, signer, &current_roles)?)
 }
 
+// Revokes `roles` from `signer`, if this results in an empty set of roles remove the storage variable
 pub fn revoke_role(
     deps: &mut DepsMut,
     signer: String,
@@ -61,13 +63,20 @@ pub fn revoke_role(
     for role in roles {
         current_roles.remove(&role);
     }
-    Ok(RBAC_PERMISSIONS.save(deps.storage, signer, &current_roles)?)
+    if current_roles.is_empty() {
+        // no more roles, remove storage variable to save resources
+        RBAC_PERMISSIONS.remove(deps.storage, signer);
+        Ok(())
+    } else {
+        Ok(RBAC_PERMISSIONS.save(deps.storage, signer, &current_roles)?)
+    }
+    
 }
 
 #[cfg(test)]
 mod test {
     use cosmwasm_std::{testing::mock_dependencies, Addr};
-
+    use itertools::Itertools;
     use crate::{msg::QuotaMsg, state::rbac::Roles};
 
     use super::*;
@@ -368,6 +377,74 @@ mod test {
                 &msg
             ).is_ok()
         );
+
+    }
+
+    #[test]
+    fn test_grant_role() {
+        let mut deps = mock_dependencies();
+        let mut deps = deps.as_mut();
+        
+        let all_roles = Roles::all_roles().into_iter().chunks(2);
+
+        // no roles, should fail
+        assert!(RBAC_PERMISSIONS.load(deps.storage, "signer".to_string()).is_err());
+
+        let mut granted_roles = HashSet::new();
+
+        for roles in &all_roles {
+            let roles = roles.collect::<Vec<_>>();
+
+            grant_role(
+                &mut deps,
+                "signer".to_string(),
+                roles.clone()
+            ).unwrap();
+            roles.iter().for_each(|role| { granted_roles.insert(*role); } );
+
+            let assigned_roles = RBAC_PERMISSIONS.load(deps.storage, "signer".to_string()).unwrap();
+
+            assert_eq!(granted_roles, assigned_roles);
+        }
+
+    }
+
+    #[test]
+    fn test_revoke_role() {
+        let mut deps = mock_dependencies();
+        let mut deps = deps.as_mut();
+
+        let all_roles = Roles::all_roles();
+        // no roles, should fail
+        assert!(RBAC_PERMISSIONS.load(deps.storage, "signer".to_string()).is_err());
+
+        // grant all roles
+        RBAC_PERMISSIONS.save(deps.storage, "signer".to_string(), &all_roles.iter().copied().collect::<HashSet<_>>()).unwrap();
+
+        let mut granted_roles: HashSet<_> = all_roles.iter().copied().collect();
+
+        for roles in &all_roles.iter().chunks(2) {
+            let roles = roles.map(|role| *role).collect::<Vec<_>>();
+
+            revoke_role(
+                &mut deps,
+                "signer".to_string(),
+                roles.clone()
+            ).unwrap();
+
+            roles.iter().for_each(|role| { granted_roles.remove(role); });
+
+            if granted_roles.is_empty() {
+                // no roles, should fail
+                assert!(RBAC_PERMISSIONS.load(deps.storage, "signer".to_string()).is_err());
+            } else {
+                let assigned_roles = RBAC_PERMISSIONS.load(deps.storage, "signer".to_string()).unwrap();
+
+                assert_eq!(assigned_roles, granted_roles);
+            }
+        }
+
+
 
     }
 }
