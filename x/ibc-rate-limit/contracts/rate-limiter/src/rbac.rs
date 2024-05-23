@@ -75,6 +75,8 @@ pub fn revoke_role(
 
 #[cfg(test)]
 mod test {
+    use std::collections::BTreeSet;
+
     use cosmwasm_std::{testing::mock_dependencies, Addr};
     use itertools::Itertools;
     use crate::{msg::QuotaMsg, state::rbac::Roles};
@@ -390,7 +392,7 @@ mod test {
         // no roles, should fail
         assert!(RBAC_PERMISSIONS.load(deps.storage, "signer".to_string()).is_err());
 
-        let mut granted_roles = HashSet::new();
+        let mut granted_roles = BTreeSet::new();
 
         for roles in &all_roles {
             let roles = roles.collect::<Vec<_>>();
@@ -419,9 +421,9 @@ mod test {
         assert!(RBAC_PERMISSIONS.load(deps.storage, "signer".to_string()).is_err());
 
         // grant all roles
-        RBAC_PERMISSIONS.save(deps.storage, "signer".to_string(), &all_roles.iter().copied().collect::<HashSet<_>>()).unwrap();
+        RBAC_PERMISSIONS.save(deps.storage, "signer".to_string(), &all_roles.iter().copied().collect::<BTreeSet<_>>()).unwrap();
 
-        let mut granted_roles: HashSet<_> = all_roles.iter().copied().collect();
+        let mut granted_roles: BTreeSet<_> = all_roles.iter().copied().collect();
 
         for roles in &all_roles.iter().chunks(2) {
             let roles = roles.map(|role| *role).collect::<Vec<_>>();

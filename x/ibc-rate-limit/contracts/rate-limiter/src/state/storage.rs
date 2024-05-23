@@ -1,6 +1,6 @@
 //! storage variables
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Deque, Item, Map};
@@ -45,4 +45,4 @@ pub const TIMELOCK_DELAY: Map<String, u64> = Map::new("timelock_delay");
 pub const MESSAGE_QUEUE: Deque<QueuedMessage> = Deque::new("queued_messages");
 
 /// Storage variable that is used to map signing addresses and the permissions they have been granted
-pub const RBAC_PERMISSIONS: Map<String, HashSet<Roles>> = Map::new("rbac");
+pub const RBAC_PERMISSIONS: Map<String, BTreeSet<Roles>> = Map::new("rbac");
