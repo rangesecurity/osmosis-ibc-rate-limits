@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// This represents the key for our rate limiting tracker. A tuple of a denom and
-/// a channel. When interactic with storage, it's preffered to use this struct
+/// a channel. When interacting with storage, it's preffered to use this struct
 /// and call path.into() on it to convert it to the composite key of the
 /// RATE_LIMIT_TRACKERS map
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

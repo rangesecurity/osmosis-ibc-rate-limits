@@ -22,7 +22,7 @@ pub fn process_message_queue(deps: &mut DepsMut, env: &Env, count: usize) -> Res
             let min_unlock = message
             .submitted_at
             .plus_seconds(message.timelock_delay * 60 * 60);
-            // check to see if the timelock delay has passed, which we need to first convert from hours int oseconds
+            // check to see if the timelock delay has passed, which we need to first convert from hours into seconds
             if env.block.time.ge(&min_unlock)
             {
                 crate::contract::match_execute(deps, &env, message.message)?;

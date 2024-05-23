@@ -158,7 +158,7 @@ impl ExecuteMsg {
     /// Given an ExecuteMsg variant returns the required RBAC role
     /// that must be held by the address which is invoking the message.
     /// 
-    /// If no RBAC role is required, returns NOne
+    /// If no RBAC role is required, returns None
     pub fn required_permission(&self) -> Option<Roles> {
         match self {
             Self::AddPath { .. } => Some(Roles::AddRateLimit),
