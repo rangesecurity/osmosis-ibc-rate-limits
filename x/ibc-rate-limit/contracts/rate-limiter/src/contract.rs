@@ -4,7 +4,9 @@ use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult}
 use cw2::{get_contract_version, set_contract_version};
 
 use crate::error::ContractError;
+use crate::message_queue::{must_queue_message, queue_message};
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
+use crate::rbac::can_invoke_message;
 use crate::state::rbac::Roles;
 use crate::state::storage::RBAC_PERMISSIONS;
 use crate::state::{flow::FlowType, storage::{GOVMODULE, IBCMODULE}};
@@ -43,15 +45,15 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     // check to see if special permissions are required to invoke the message, and that the sender has the required permissions
-    crate::rbac::can_invoke_message(&deps, &info, &msg)?;
+    can_invoke_message(&deps, &info, &msg)?;
     // check to see if messages sent by MessageInfo::sender require a timelock
     //
     // if a timelock is required the message must be queued for execution
-    if crate::message_queue::must_queue_message(
+    if must_queue_message(
         &mut deps,
         &info
     ) {
-        let message_id = crate::message_queue::queue_message(&mut deps, env, msg, info)?;
+        let message_id = queue_message(&mut deps, env, msg, info)?;
         Ok(Response::new().add_attribute("message.id", message_id))
     } else {
         match_execute(&mut deps, &env, msg)
