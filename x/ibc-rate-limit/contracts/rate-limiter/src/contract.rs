@@ -49,7 +49,7 @@ pub fn execute(
     // check to see if messages sent by MessageInfo::sender require a timelock
     //
     // if a timelock is required the message must be queued for execution
-    if must_queue_message(
+    if !matches!(msg , ExecuteMsg::ProcessMessages { .. }) || must_queue_message(
         &mut deps,
         &info
     ) {
