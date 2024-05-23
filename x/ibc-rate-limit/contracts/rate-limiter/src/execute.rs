@@ -134,8 +134,8 @@ mod tests {
     use crate::state::rbac::Roles;
     use crate::state::{rate_limit::RateLimit, storage::{GOVMODULE, IBCMODULE}};
 
-    const IBC_ADDR: &str = "IBC_MODULE";
-    const GOV_ADDR: &str = "GOV_MODULE";
+    const IBC_ADDR: &str = "osmo1vz5e6tzdjlzy2f7pjvx0ecv96h8r4m2y92thdm";
+    const GOV_ADDR: &str = "osmo1tzz5zf2u68t00un2j4lrrnkt2ztd46kfzfp58r";
 
     #[test] // Tests AddPath and RemovePath messages
     fn management_add_and_remove_path() {

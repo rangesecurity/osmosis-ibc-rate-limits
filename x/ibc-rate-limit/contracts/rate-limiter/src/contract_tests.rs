@@ -11,8 +11,8 @@ use crate::msg::{InstantiateMsg, MigrateMsg, PathMsg, QueryMsg, QuotaMsg, SudoMs
 use crate::state::flow::tests::RESET_TIME_WEEKLY;
 use crate::state::storage::{GOVMODULE, IBCMODULE, RATE_LIMIT_TRACKERS, RBAC_PERMISSIONS};
 use crate::state::rate_limit::RateLimit;
-const IBC_ADDR: &str = "IBC_MODULE";
-const GOV_ADDR: &str = "GOV_MODULE";
+const IBC_ADDR: &str = "osmo1vz5e6tzdjlzy2f7pjvx0ecv96h8r4m2y92thdm";
+const GOV_ADDR: &str = "osmo1tzz5zf2u68t00un2j4lrrnkt2ztd46kfzfp58r";
 
 #[test] // Tests we ccan instantiate the contract and that the owners are set correctly
 fn proper_instantiation() {
@@ -414,7 +414,7 @@ fn proper_migrate() {
         deps.as_mut(),
         env,
         MessageInfo {
-            sender: Addr::unchecked("deployer"),
+            sender: Addr::unchecked("osmo16tumts0kckpfp9fk7e3rnx9ahzn70dyyqfypgh"),
             funds: vec![]
         },
         InstantiateMsg {

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use cosmwasm_std::{DepsMut, MessageInfo};
+use cosmwasm_std::{Addr, DepsMut, MessageInfo};
 
 use crate::{msg::ExecuteMsg, state::{rbac::Roles, storage::{RBAC_PERMISSIONS, TIMELOCK_DELAY}}, ContractError};
 
@@ -34,7 +34,8 @@ pub fn set_timelock_delay(
     signer: String,
     hours: u64
 ) -> Result<(), ContractError> {
-    Ok(TIMELOCK_DELAY.save(deps.storage, signer, &hours)?)
+    let signer = deps.api.addr_validate(&signer)?;
+    Ok(TIMELOCK_DELAY.save(deps.storage, signer.to_string(), &hours)?)
 }
 
 /// Grants `roles` to `signer`
@@ -43,14 +44,15 @@ pub fn grant_role(
     signer: String,
     roles: Vec<Roles>
 ) -> Result<(), ContractError> {
+    let signer = deps.api.addr_validate(&signer)?;
     // get the current roles, if no current roles will be an empty vec
-    let mut current_roles = RBAC_PERMISSIONS.load(deps.storage, signer.clone()).unwrap_or_default();
+    let mut current_roles = RBAC_PERMISSIONS.load(deps.storage, signer.to_string()).unwrap_or_default();
     for role in roles {
         current_roles.insert(role);
     }
 
     // persist new roles
-    Ok(RBAC_PERMISSIONS.save(deps.storage, signer, &current_roles)?)
+    Ok(RBAC_PERMISSIONS.save(deps.storage, signer.to_string(), &current_roles)?)
 }
 
 // Revokes `roles` from `signer`, if this results in an empty set of roles remove the storage variable
@@ -59,16 +61,18 @@ pub fn revoke_role(
     signer: String,
     roles: Vec<Roles>
 ) -> Result<(), ContractError> {
-    let mut current_roles = RBAC_PERMISSIONS.load(deps.storage, signer.clone())?;
+    let signer = deps.api.addr_validate(&signer)?;
+
+    let mut current_roles = RBAC_PERMISSIONS.load(deps.storage, signer.to_string())?;
     for role in roles {
         current_roles.remove(&role);
     }
     if current_roles.is_empty() {
         // no more roles, remove storage variable to save resources
-        RBAC_PERMISSIONS.remove(deps.storage, signer);
+        RBAC_PERMISSIONS.remove(deps.storage, signer.to_string());
         Ok(())
     } else {
-        Ok(RBAC_PERMISSIONS.save(deps.storage, signer, &current_roles)?)
+        Ok(RBAC_PERMISSIONS.save(deps.storage, signer.to_string(), &current_roles)?)
     }
     
 }
