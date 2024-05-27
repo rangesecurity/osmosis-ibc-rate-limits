@@ -49,16 +49,15 @@ pub fn execute(
     // check to see if messages sent by MessageInfo::sender require a timelock
     //
     // if a timelock is required the message must be queued for execution
-    if must_queue_message(
-        &mut deps,
-        &info
-    ) {
+
+    if msg.skip_queue() {
+        match_execute(&mut deps, &env, msg)
+    } else if must_queue_message(&mut deps, &info) {
         let message_id = queue_message(&mut deps, env, msg, info)?;
         Ok(Response::new().add_attribute("message.id", message_id))
     } else {
         match_execute(&mut deps, &env, msg)
     }
-    
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

@@ -172,4 +172,13 @@ impl ExecuteMsg {
             Self::ProcessMessages { .. } => None
         }
     }
+    /// Checks to see if the message type is able to skip queueing.
+    /// 
+    /// This is limited to the message type responsible for processing the queue
+    pub fn skip_queue(&self) -> bool {
+        match self {
+            Self::ProcessMessages { .. } => true,
+            _ => false
+        }
+    }
 }
