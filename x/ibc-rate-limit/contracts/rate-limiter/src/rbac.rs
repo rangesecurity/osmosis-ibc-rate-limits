@@ -353,7 +353,7 @@ mod test {
     }
 
     #[test]
-    fn test_can_invoke_process_messages_by_count() {
+    fn test_can_invoke_process_messages() {
         let mut deps = mock_dependencies();
 
 
@@ -384,23 +384,28 @@ mod test {
             ).is_ok()
         );
 
+        // try again with message_ids Some
+
+
+        let msg = ExecuteMsg::ProcessMessages { count: None, message_ids: Some(vec!["foobar".to_string()]) };
+
+        // all addresses should be able to invoke this
+        assert!(
+            can_invoke_message(
+                &deps.as_mut(),
+                &info_foobar,
+                &msg
+            ).is_ok()
+        );
+        assert!(
+            can_invoke_message(
+                &deps.as_mut(),
+                &info_foobarbaz,
+                &msg
+            ).is_ok()
+        );
+
     }
-    #[test]
-    fn test_can_invoke_process_messages_by_ids() {
-        let mut deps = mock_dependencies();
-
-
-        let info_foobar = MessageInfo {
-            sender: Addr::unchecked("foobar".to_string()),
-            funds: vec![]
-        };
-        let info_foobarbaz = MessageInfo {
-            sender: Addr::unchecked("foobarbaz".to_string()),
-            funds: vec![]
-        };
-        todo!()
-    }
-
 
     #[test]
     fn test_grant_role() {

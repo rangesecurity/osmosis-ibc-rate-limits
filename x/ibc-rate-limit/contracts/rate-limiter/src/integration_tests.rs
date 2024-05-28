@@ -760,12 +760,12 @@ fn test_execute_process_messages() {
     }]);
 
 
-
+    // allocate GrantRole and RevokeRole to `foobar`
     let management_msg = ExecuteMsg::GrantRole {
         signer: "foobar".to_string(),
-        roles: vec![Roles::GrantRole]
+        roles: vec![Roles::GrantRole, Roles::RevokeRole]
     };
-    println!("{:#?}", management_msg.type_id());
+
     let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
     // non gov cant invoke
     assert!(app.execute(Addr::unchecked("foobar"), cosmos_msg.clone()).is_err());
@@ -784,7 +784,8 @@ fn test_execute_process_messages() {
     // gov addr can invoke
     app.execute(Addr::unchecked(GOV_ADDR), cosmos_msg.clone()).unwrap();
 
-    // message submitter by foobar should be queued
+    // message submitted by foobar should be queued
+    // allocate GrantRole to foobarbaz
     let management_msg = ExecuteMsg::GrantRole {
         signer: "foobarbaz".to_string(),
         roles: vec![Roles::GrantRole]
@@ -803,7 +804,7 @@ fn test_execute_process_messages() {
     // any address should be able to trigger queue message processing
     let management_msg = ExecuteMsg::ProcessMessages {
         count: Some(1),
-       message_ids: None
+        message_ids: None
     };
     let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
     app.execute(Addr::unchecked("veryrandomaddress"), cosmos_msg).unwrap();
@@ -817,7 +818,7 @@ fn test_execute_process_messages() {
     // advance time
     app.update_block(|block| {
         block.height += 100;
-        block.time = block.time.plus_seconds(3600 * 4)
+        block.time = block.time.plus_seconds(3601)
     });
 
     // any address should be able to trigger queue message processing
@@ -835,7 +836,6 @@ fn test_execute_process_messages() {
     ).unwrap().len(), 0);
 
     // foobarbaz should have the GrantRole permission
-
     let response = app.wrap().query_wasm_smart::<Vec<Roles>>(
         cw_rate_limit_contract.addr(),
         &QueryMsg::GetRoles {
@@ -845,9 +845,13 @@ fn test_execute_process_messages() {
     assert_eq!(response.len(), 1);
     assert_eq!(response[0], Roles::GrantRole);
 
+    app.update_block(|block| {
+        block.height += 1;
+        block.time = block.time.plus_seconds(3600);
+    });
 
-    let management_msg = ExecuteMsg::GrantRole {
-        signer: "foobarbazbiz".to_string(),
+    let management_msg = ExecuteMsg::RevokeRole {
+        signer: "foobarbaz".to_string(),
         roles: vec![Roles::GrantRole]
     };
     let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
@@ -859,19 +863,53 @@ fn test_execute_process_messages() {
     ).unwrap();
     assert_eq!(message_ids.len(), 1);
 
+    app.update_block(|block| {
+        block.height += 1;
+    });
+
     let management_msg = ExecuteMsg::ProcessMessages {
-        count: None,
-        message_ids: Some(message_ids)
+        count: Some(1),
+        message_ids: None
     };
     let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
     app.execute(Addr::unchecked("foobar"), cosmos_msg.clone()).unwrap();
+
+    // insufficient time has passed so queue length is still 1
     let response = app.wrap().query_wasm_smart::<Vec<Roles>>(
         cw_rate_limit_contract.addr(),
         &QueryMsg::GetRoles {
             owner: "foobarbaz".to_string()
         }
     ).unwrap();
-    assert_eq!(response.len(), 0);
+    assert_eq!(response.len(), 1);
+
+    // advance time
+    app.update_block(|block| {
+        block.height += 100;
+        block.time = block.time.plus_seconds(3601);
+    });
+
+    let management_msg = ExecuteMsg::ProcessMessages {
+        count: None,
+        message_ids: Some(message_ids.clone())
+    };
+    let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
+    app.execute(Addr::unchecked("foobar"), cosmos_msg.clone()).unwrap();
+    
+    // sufficient time has passed, empty queue
+    let message_ids = app.wrap().query_wasm_smart::<Vec<String>>(
+        cw_rate_limit_contract.addr(),
+        &QueryMsg::GetMessageIds
+    ).unwrap();
+    assert_eq!(message_ids.len(), 0);
+
+    // no rolles allocated, storage key should be removed
+    assert!(app.wrap().query_wasm_smart::<Vec<Roles>>(
+        cw_rate_limit_contract.addr(),
+        &QueryMsg::GetRoles {
+            owner: "foobarbaz".to_string()
+        }
+    ).is_err());
 
     // error should be returned when all params are None
     let management_msg = ExecuteMsg::ProcessMessages {

@@ -23,12 +23,13 @@ pub fn process_message_queue(
     message_ids: Option<Vec<String>>,
 ) -> Result<Response, ContractError> {
     let mut response = Response::new();
+
     if let Some(message_ids) = message_ids {
+    
         let messages = pop_messages(deps.storage, &message_ids)?;
-        for mut message in messages {
-            // message_id isn't needed for message processing
-            // so avoid a clone by taking the message_id and replacing with empty string
-            let message_id = std::mem::take(&mut message.message_id);
+    
+        for message in messages {
+            let message_id = message.message_id.clone();
             if let Err(err) = try_process_message(deps, env, message) {
                 response = response.add_attribute(message_id, err.to_string());
             } else {
@@ -37,17 +38,19 @@ pub fn process_message_queue(
         }
         return Ok(response);
     }
+    
     let Some(count) = count else {
         return Err(ContractError::InvalidParameters("both count and message_ids are None".to_string()))
     };
+    
     let queue_len = MESSAGE_QUEUE.len(deps.storage)? as usize;
 
     for idx in 0..queue_len {
         if idx + 1 > count as usize {
             break;
         }
-        if let Some(mut message) = MESSAGE_QUEUE.pop_front(deps.storage)? {
-            let message_id = std::mem::take(&mut message.message_id);
+        if let Some(message) = MESSAGE_QUEUE.pop_front(deps.storage)? {
+            let message_id = message.message_id.clone();
             if let Err(err) = try_process_message(deps, env, message) {
                 response = response.add_attribute(message_id, err.to_string());
             } else {
@@ -102,15 +105,20 @@ fn pop_messages(
 ) -> Result<Vec<QueuedMessage>, ContractError> {
     let queue_len = MESSAGE_QUEUE.len(storage)? as usize;
     let mut messages = Vec::with_capacity(message_ids.len());
+
     for _ in 0..queue_len {
+    
         if let Some(message) = MESSAGE_QUEUE.pop_front(storage)? {
+    
             if message_ids.contains(&message.message_id) {
                 messages.push(message);
             } else {
                 // reinsert
                 MESSAGE_QUEUE.push_back(storage, &message)?;
             }
+    
         }
+    
     }
     Ok(messages)
 }
@@ -127,12 +135,14 @@ fn try_process_message(
     let min_unlock = message
         .submitted_at
         .plus_seconds(message.timelock_delay * 60 * 60);
+
     // check to see if the timelock delay has passed, which we need to first convert from hours into seconds
     if env.block.time.ge(&min_unlock) {
         crate::contract::match_execute(deps, &env, message.message)?;
     } else {
         MESSAGE_QUEUE.push_back(deps.storage, &message)?;
     }
+
     Ok(())
 }
 
@@ -256,7 +266,24 @@ mod tests {
         process_message_queue(&mut deps, &env.clone(), Some(10), None).unwrap();
         assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 0);
 
-        todo!("add message_ids processing tests")
+        create_n_messages(&mut deps, 10, &mut |_i: u64| Timestamp::default());
+
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 10);
+
+
+        let message_ids = MESSAGE_QUEUE.iter(deps.storage).unwrap().filter_map(|msg| Some(msg.ok()?.message_id)).collect::<Vec<_>>();
+
+        // get the first 4 message ids
+        let msg_ids = message_ids[0..4].to_vec();
+        process_message_queue(&mut deps, &env.clone(), None, Some(msg_ids)).unwrap();
+        // should be 6 messages left
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 6);
+
+        // get the remaining messages
+        let msg_ids = message_ids[4..].to_vec();
+        process_message_queue(&mut deps, &env.clone(), None, Some(msg_ids)).unwrap();
+        // should be 0 messages left
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 0);
     }
 
     #[test]
@@ -330,13 +357,33 @@ mod tests {
             10
         );
 
-        todo!("add message_id processing tests")
+        create_n_messages(&mut deps, 1, &mut |i: u64| {
+            // increment time by 1 hour * i
+            time.plus_seconds(3600 * i)
+        });
+
+        let message_ids = MESSAGE_QUEUE.iter(deps.storage).unwrap().filter_map(|msg| Some(msg.ok()?.message_id)).collect::<Vec<_>>();
+
+        process_message_queue(&mut deps, &env.clone(), None, Some(message_ids)).unwrap();
+        // signer should have a delay of 1 hours
+        assert_eq!(
+            TIMELOCK_DELAY
+                .load(deps.storage, "signer".to_string())
+                .unwrap(),
+            1
+        );
     }
 
     #[test]
     #[should_panic(expected ="both count and message_ids are None")]
     fn test_process_message_queue_invalid_parameters() {
-        todo!()
+        let mut deps = mock_dependencies();
+        let mut deps = deps.as_mut();
+        let mut env = mock_env();
+        create_n_messages(&mut deps, 10, &mut |_i: u64| Timestamp::default());
+        assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 10);
+
+        process_message_queue(&mut deps, &env.clone(), None, None).unwrap();
     }
 
     // helper function which inserts N messages into the message queue
@@ -353,7 +400,7 @@ mod tests {
                         },
                         submitted_at: ts(i as u64),
                         timelock_delay: 24,
-                        message_id: "prop-1".to_string(),
+                        message_id: format!("prop-{i}"),
                     },
                 )
                 .unwrap();
