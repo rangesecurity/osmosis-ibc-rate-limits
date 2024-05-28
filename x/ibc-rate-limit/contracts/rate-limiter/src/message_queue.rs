@@ -25,24 +25,25 @@ pub fn process_message_queue(
     let mut response = Response::new();
 
     if let Some(message_ids) = message_ids {
-    
         let messages = pop_messages(deps.storage, &message_ids)?;
-    
+
         for message in messages {
             let message_id = message.message_id.clone();
             if let Err(err) = try_process_message(deps, env, message) {
                 response = response.add_attribute(message_id, err.to_string());
             } else {
-                response =  response.add_attribute(message_id, "ok");
+                response = response.add_attribute(message_id, "ok");
             }
         }
         return Ok(response);
     }
-    
+
     let Some(count) = count else {
-        return Err(ContractError::InvalidParameters("both count and message_ids are None".to_string()))
+        return Err(ContractError::InvalidParameters(
+            "both count and message_ids are None".to_string(),
+        ));
     };
-    
+
     let queue_len = MESSAGE_QUEUE.len(deps.storage)? as usize;
 
     for idx in 0..queue_len {
@@ -107,18 +108,14 @@ fn pop_messages(
     let mut messages = Vec::with_capacity(message_ids.len());
 
     for _ in 0..queue_len {
-    
         if let Some(message) = MESSAGE_QUEUE.pop_front(storage)? {
-    
             if message_ids.contains(&message.message_id) {
                 messages.push(message);
             } else {
                 // reinsert
                 MESSAGE_QUEUE.push_back(storage, &message)?;
             }
-    
         }
-    
     }
     Ok(messages)
 }
@@ -257,7 +254,7 @@ mod tests {
         process_message_queue(&mut deps, &env.clone(), Some(1), None).unwrap();
         assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 9);
 
-        process_message_queue(&mut deps, &env.clone(), Some(0),None).unwrap();
+        process_message_queue(&mut deps, &env.clone(), Some(0), None).unwrap();
         assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 9);
 
         process_message_queue(&mut deps, &env.clone(), Some(5), None).unwrap();
@@ -270,8 +267,11 @@ mod tests {
 
         assert_eq!(MESSAGE_QUEUE.len(deps.storage).unwrap(), 10);
 
-
-        let message_ids = MESSAGE_QUEUE.iter(deps.storage).unwrap().filter_map(|msg| Some(msg.ok()?.message_id)).collect::<Vec<_>>();
+        let message_ids = MESSAGE_QUEUE
+            .iter(deps.storage)
+            .unwrap()
+            .filter_map(|msg| Some(msg.ok()?.message_id))
+            .collect::<Vec<_>>();
 
         // get the first 4 message ids
         let msg_ids = message_ids[0..4].to_vec();
@@ -362,7 +362,11 @@ mod tests {
             time.plus_seconds(3600 * i)
         });
 
-        let message_ids = MESSAGE_QUEUE.iter(deps.storage).unwrap().filter_map(|msg| Some(msg.ok()?.message_id)).collect::<Vec<_>>();
+        let message_ids = MESSAGE_QUEUE
+            .iter(deps.storage)
+            .unwrap()
+            .filter_map(|msg| Some(msg.ok()?.message_id))
+            .collect::<Vec<_>>();
 
         process_message_queue(&mut deps, &env.clone(), None, Some(message_ids)).unwrap();
         // signer should have a delay of 1 hours
@@ -375,7 +379,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected ="both count and message_ids are None")]
+    #[should_panic(expected = "both count and message_ids are None")]
     fn test_process_message_queue_invalid_parameters() {
         let mut deps = mock_dependencies();
         let mut deps = deps.as_mut();
