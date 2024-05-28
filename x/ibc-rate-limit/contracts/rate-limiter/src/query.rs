@@ -140,7 +140,7 @@ mod test {
                 &mut deps.storage,
                 &QueuedMessage {
                     message_id: "prop-1".to_string(),
-                    message: ExecuteMsg::ProcessMessages { count: 1 },
+                    message: ExecuteMsg::ProcessMessages { count: Some(1),message_ids: None },
                     submitted_at: Timestamp::default(),
                     timelock_delay: 0,
                 },
@@ -151,7 +151,7 @@ mod test {
                 &mut deps.storage,
                 &QueuedMessage {
                     message_id: "prop-2".to_string(),
-                    message: ExecuteMsg::ProcessMessages { count: 1 },
+                    message: ExecuteMsg::ProcessMessages { count: Some(1),message_ids: None },
                     submitted_at: Timestamp::default(),
                     timelock_delay: 0,
                 },

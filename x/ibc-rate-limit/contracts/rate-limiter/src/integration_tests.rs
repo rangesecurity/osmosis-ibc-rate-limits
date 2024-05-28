@@ -1,4 +1,6 @@
 #![cfg(test)]
+use std::any::Any;
+
 use crate::{helpers::RateLimitingContract, msg::{ExecuteMsg, QueryMsg}, state::{rate_limit::RateLimit, rbac::Roles}, test_msg_send, ContractError};
 use cosmwasm_std::{to_binary, Addr, Coin, Empty, Timestamp, Uint128, Uint256};
 use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper, Executor};
@@ -19,8 +21,8 @@ pub fn contract_template() -> Box<dyn Contract<Empty>> {
 }
 
 const USER: &str = "USER";
-const IBC_ADDR: &str = "IBC_MODULE";
-const GOV_ADDR: &str = "GOV_MODULE";
+const IBC_ADDR: &str = "osmo1vz5e6tzdjlzy2f7pjvx0ecv96h8r4m2y92thdm";
+const GOV_ADDR: &str = "osmo1tzz5zf2u68t00un2j4lrrnkt2ztd46kfzfp58r";
 const NATIVE_DENOM: &str = "nosmo";
 
 fn mock_app() -> App {
@@ -763,6 +765,7 @@ fn test_execute_process_messages() {
         signer: "foobar".to_string(),
         roles: vec![Roles::GrantRole]
     };
+    println!("{:#?}", management_msg.type_id());
     let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
     // non gov cant invoke
     assert!(app.execute(Addr::unchecked("foobar"), cosmos_msg.clone()).is_err());
@@ -781,7 +784,7 @@ fn test_execute_process_messages() {
     // gov addr can invoke
     app.execute(Addr::unchecked(GOV_ADDR), cosmos_msg.clone()).unwrap();
 
-    // message submitter by foobar should not be queued
+    // message submitter by foobar should be queued
     let management_msg = ExecuteMsg::GrantRole {
         signer: "foobarbaz".to_string(),
         roles: vec![Roles::GrantRole]
@@ -799,7 +802,8 @@ fn test_execute_process_messages() {
 
     // any address should be able to trigger queue message processing
     let management_msg = ExecuteMsg::ProcessMessages {
-        count: 1
+        count: Some(1),
+       message_ids: None
     };
     let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
     app.execute(Addr::unchecked("veryrandomaddress"), cosmos_msg).unwrap();
@@ -818,7 +822,8 @@ fn test_execute_process_messages() {
 
     // any address should be able to trigger queue message processing
     let management_msg = ExecuteMsg::ProcessMessages {
-        count: 1
+        count: Some(1),
+       message_ids: None
     };
     let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
     app.execute(Addr::unchecked("veryrandomaddress"), cosmos_msg).unwrap();
@@ -839,4 +844,40 @@ fn test_execute_process_messages() {
     ).unwrap();
     assert_eq!(response.len(), 1);
     assert_eq!(response[0], Roles::GrantRole);
+
+
+    let management_msg = ExecuteMsg::GrantRole {
+        signer: "foobarbazbiz".to_string(),
+        roles: vec![Roles::GrantRole]
+    };
+    let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
+    app.execute(Addr::unchecked("foobar"), cosmos_msg.clone()).unwrap();
+
+    let message_ids = app.wrap().query_wasm_smart::<Vec<String>>(
+        cw_rate_limit_contract.addr(),
+        &QueryMsg::GetMessageIds
+    ).unwrap();
+    assert_eq!(message_ids.len(), 1);
+
+    let management_msg = ExecuteMsg::ProcessMessages {
+        count: None,
+        message_ids: Some(message_ids)
+    };
+    let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
+    app.execute(Addr::unchecked("foobar"), cosmos_msg.clone()).unwrap();
+    let response = app.wrap().query_wasm_smart::<Vec<Roles>>(
+        cw_rate_limit_contract.addr(),
+        &QueryMsg::GetRoles {
+            owner: "foobarbaz".to_string()
+        }
+    ).unwrap();
+    assert_eq!(response.len(), 0);
+
+    // error should be returned when all params are None
+    let management_msg = ExecuteMsg::ProcessMessages {
+        count: None,
+       message_ids: None
+    };
+    let cosmos_msg = cw_rate_limit_contract.call(management_msg).unwrap();
+    assert!(app.execute(Addr::unchecked("foobar"), cosmos_msg.clone()).is_err());
 }

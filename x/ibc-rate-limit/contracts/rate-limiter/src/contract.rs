@@ -192,11 +192,12 @@ pub(crate) fn match_execute(
                 .add_attribute("signer", signer)
                 .add_attribute("hours", hours.to_string()))
         }
-        ExecuteMsg::ProcessMessages { count } => {
+        ExecuteMsg::ProcessMessages { count, message_ids } => {
             message_queue::process_message_queue(
                 deps,
                 env,
-                count as usize
+                count,
+                message_ids
             )?;
             Ok(Response::new().add_attribute("method", "process_messages"))
         },

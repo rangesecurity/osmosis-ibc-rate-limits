@@ -102,13 +102,16 @@ pub enum ExecuteMsg {
     SetTimelockDelay {
         /// the address to apply the timelock delay to
         signer: String,
-        hours: u64,
+        hours: std::primitive::u64,
     },
     /// Permissionless message that anyone can invoke to trigger execution
     /// of queued messages that have passed the timelock delay
+    /// 
+    /// If both count and message_ids are some, message_ids is used. If both are None returns an error
     ProcessMessages {
         /// number of queued messages to process, a value of 0 will attempt to process all queued messages
-        count: u64,
+        count: Option<u64>,
+        message_ids: Option<Vec<String>>
     },
 }
 
