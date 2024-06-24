@@ -1,6 +1,7 @@
 module github.com/osmosis-labs/osmosis/v25
 
 go 1.21.4
+toolchain go1.22.4
 
 require (
 	cosmossdk.io/api v0.3.1
@@ -35,7 +36,7 @@ require (
 	github.com/osmosis-labs/sqs/sqsdomain v0.18.1
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.7
-	github.com/skip-mev/block-sdk v1.4.2
+	github.com/skip-mev/block-sdk v1.4.7
 	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
